@@ -29,6 +29,9 @@ class _ScanQrScreenBodyState extends State<ScanQrScreenBody>
         ScanQrConnectivityMixin,
         ScanQrCameraMixin,
         ScanQrHandlerMixin {
+  
+  static String? lastShownSyncError;
+
   @override
   void initState() {
     super.initState();
@@ -98,13 +101,17 @@ class _ScanQrScreenBodyState extends State<ScanQrScreenBody>
         BlocListener<ScanQrOflineCubit, ScanQrOflineState>(
           listener: (context, state) {
             if (state is ScanQrOflineSuccess) {
+              _ScanQrScreenBodyState.lastShownSyncError = null;
               if (!state.isSync &&
                   state.message != "لا توجد بيانات مخزنة للمزامنة" &&
                   state.message != "لا توجد بيانات فريدة للمزامنة") {
                 showMessage(state.message, DialogType.success);
               }
             } else if (state is ScanQrOflineFailure) {
-              showMessage(state.errorMessage, DialogType.error);
+              if (_ScanQrScreenBodyState.lastShownSyncError != state.errorMessage) {
+                _ScanQrScreenBodyState.lastShownSyncError = state.errorMessage;
+                showMessage(state.errorMessage, DialogType.error);
+              }
             } else if (state is ScanQrOflineDuplicate) {
               showMessage(state.message, DialogType.warning);
             }

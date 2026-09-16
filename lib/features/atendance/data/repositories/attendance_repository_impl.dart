@@ -92,8 +92,15 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
       List<Map<String, dynamic>> attendanceList = [];
       final Set<String> uniqueKeys = {};
+      final List<int> invalidKeysToDelete = [];
 
       for (var entry in localData) {
+        if (entry.uid.length > 36) {
+          if (entry.key != null) {
+            invalidKeysToDelete.add(entry.key as int);
+          }
+          continue;
+        }
         final key = '${entry.uid}_${entry.sessionId}';
         if (uniqueKeys.contains(key)) continue;
         uniqueKeys.add(key);
