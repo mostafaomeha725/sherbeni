@@ -1,0 +1,57 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS unsigned archive
+        run: flutter build ipa --release --no-codesign
+
+      - name: Package to IPA
+        run: |
+          # flutter build ipa --no-codesign creates an xcarchive at build/ios/archive/Runner.xcarchive
+          # We need to manually package the Runner.app into a Payload folder and zip it to create a valid .ipa
+          
+          cd build/ios/archive/Runner.xcarchive/Products/Applications
+          
+          # Create Payload directory
+          mkdir -p Payload
+          
+          # Move Runner.app inside Payload
+          mv Runner.app Payload/
+          
+          # Zip it into Runner.ipa
+          zip -qq -r ../../../../../Runner.ipa Payload
+          
+          echo "Successfully packaged Runner.ipa"
+
+      - name: Verify IPA exists
+        run: |
+          if [ ! -f "Runner.ipa" ]; then
+            echo "Error: Runner.ipa was not generated!"
+            exit 1
+          fi
+          echo "Runner.ipa verified."
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Runner.ipa
+          path: Runner.ipa
+          retention-days: 7
