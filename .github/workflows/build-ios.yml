@@ -36,22 +36,22 @@ jobs:
           # Move Runner.app inside Payload
           mv Runner.app Payload/
           
-          # Zip it into Runner.ipa
-          zip -qq -r ../../../../../Runner.ipa Payload
+          # Zip it into Runner.ipa at the workspace root
+          zip -qq -r $GITHUB_WORKSPACE/Runner.ipa Payload
           
           echo "Successfully packaged Runner.ipa"
 
       - name: Verify IPA exists
         run: |
-          if [ ! -f "Runner.ipa" ]; then
+          if [ ! -f "$GITHUB_WORKSPACE/Runner.ipa" ]; then
             echo "Error: Runner.ipa was not generated!"
             exit 1
           fi
-          echo "Runner.ipa verified."
+          echo "Runner.ipa verified at $GITHUB_WORKSPACE/Runner.ipa"
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Runner.ipa
+          name: Runner-IPA
           path: Runner.ipa
           retention-days: 7
