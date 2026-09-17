@@ -131,7 +131,7 @@ class NetworkService {
         return Left(Failure(msg ?? 'Error ${response.statusCode}'));
       }
     } on SocketException {
-      return const Left(Failure("No Internet Connection"));
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -176,7 +176,7 @@ class NetworkService {
         return Left(Failure(response.data['message'].toString()));
       }
     } on SocketException {
-      return const Left(Failure("No Internet Connection"));
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -200,7 +200,7 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left(Failure("No Internet Connection"));
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -256,7 +256,7 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left(Failure("No Internet Connection"));
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -285,7 +285,7 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left("No Internet Connection");
+      return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
     } on FormatException {
       return const Left("Format Exception");
     } on DioException catch (e) {
@@ -295,9 +295,9 @@ class NetworkService {
           fallback: e.message ?? 'Bad response',
         );
         return Left(message);
-      } else if (e.type == DioExceptionType.connectionTimeout) {
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
-        return const Left("Check your connection");
+        return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
       } else if (e.type == DioExceptionType.receiveTimeout) {
         // safePrint('unable to connect to the server');
         return const Left("Unable to connect to the server");
@@ -323,7 +323,7 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left("No Internet Connection");
+      return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
     } on FormatException {
       return const Left("Format Exception");
     } on DioException catch (e) {
@@ -333,9 +333,9 @@ class NetworkService {
           fallback: e.message ?? 'Bad response',
         );
         return Left(message);
-      } else if (e.type == DioExceptionType.connectionTimeout) {
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
-        return const Left("Check your connection");
+        return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
       } else if (e.type == DioExceptionType.receiveTimeout) {
         // safePrint('unable to connect to the server');
         return const Left("Unable to connect to the server");
@@ -364,7 +364,7 @@ class NetworkService {
         return Left(Failure(message));
       }
     } on SocketException {
-      return const Left(Failure("No Internet Connection"));
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -375,11 +375,11 @@ class NetworkService {
         );
         return Left(Failure(message));
         // return Left(_l)(e.message);
-      } else if (e.type == DioExceptionType.connectionTimeout) {
+      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
-        return const Left(Failure("Check your connection"));
+        return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
       } else if (e.type == DioExceptionType.receiveTimeout) {
-        return const Left(Failure("Unable to connect to the server"));
+        return const Left(Failure("تعذر الاتصال بالخادم"));
       } else {
         return Left(Failure(e.message ?? ""));
         // return const Left("Check internet connection");
@@ -428,10 +428,10 @@ class NetworkService {
         }
       }
       return Left(Failure(e.message ?? 'Something went wrong'));
-    } else if (e.type == DioExceptionType.connectionTimeout) {
-      return const Left(Failure("Check your connection"));
+    } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
     } else if (e.type == DioExceptionType.receiveTimeout) {
-      return const Left(Failure("Unable to connect to the server"));
+      return const Left(Failure("تعذر الاتصال بالخادم"));
     } else {
       return Left(Failure(e.message ?? ""));
     }
