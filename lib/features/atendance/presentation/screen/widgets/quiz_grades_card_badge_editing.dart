@@ -5,7 +5,7 @@ import 'package:qrattendance/core/widgets/app_form_field.dart';
 class QuizGradesCardBadgeEditing extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
-  final int? quizMaxGrade;
+  final num? quizMaxGrade;
   final VoidCallback onSave;
 
   const QuizGradesCardBadgeEditing({
@@ -29,7 +29,9 @@ class QuizGradesCardBadgeEditing extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               autofocus: true,
-              keyboardType: TextInputType.number,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               textAlign: TextAlign.center,
               hintText: quizMaxGrade != null ? '/$quizMaxGrade' : '0',
               contentPadding: EdgeInsets.zero, // Compact padding

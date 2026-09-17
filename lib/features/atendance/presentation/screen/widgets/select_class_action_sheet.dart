@@ -8,16 +8,25 @@ import 'package:qrattendance/features/atendance/domain/entities/session_entity.d
 
 class SelectClassActionSheet extends StatelessWidget {
   final SessionEntity session;
+  final List<dynamic> quizzes;
 
-  const SelectClassActionSheet({super.key, required this.session});
+  const SelectClassActionSheet({
+    super.key,
+    required this.session,
+    required this.quizzes,
+  });
 
-  static void show(BuildContext context, SessionEntity session) {
+  static void show(
+    BuildContext context,
+    SessionEntity session,
+    List<dynamic> quizzes,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (BuildContext context) {
-        return SelectClassActionSheet(session: session);
+        return SelectClassActionSheet(session: session, quizzes: quizzes);
       },
     );
   }
@@ -122,20 +131,34 @@ class SelectClassActionSheet extends StatelessWidget {
                   },
                 ),
                 SizedBox(height: 16.h),
-                _buildActionCard(
-                  context: context,
-                  title: 'Quiz Grades',
-                  subtitle: 'Enter or update student grades',
-                  icon: Icons.grading_rounded,
-                  iconColor: const Color(0xFF10B981), // Green theme for grades
-                  bgColor: const Color(0xFFECFDF5),
-                  onTap: () {
-                    GoRouter.of(context).pop();
-                    GoRouter.of(
-                      context,
-                    ).push(Routes.quizGradesScreen, extra: session);
-                  },
-                ),
+                ...quizzes.map((quiz) {
+                  final quizName = quiz['name'] ?? 'Quiz';
+                  final quizTemplateId =
+                      quiz['quiz_template_id']?.toString() ?? '';
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 16.h),
+                    child: _buildActionCard(
+                      context: context,
+                      title: 'Quiz: $quizName',
+                      subtitle: 'Enter or update student grades',
+                      icon: Icons.grading_rounded,
+                      iconColor: const Color(
+                        0xFF10B981,
+                      ), // Green theme for grades
+                      bgColor: const Color(0xFFECFDF5),
+                      onTap: () {
+                        GoRouter.of(context).pop();
+                        GoRouter.of(context).push(
+                          Routes.quizGradesScreen,
+                          extra: {
+                            'session': session,
+                            'quizTemplateId': quizTemplateId,
+                          },
+                        );
+                      },
+                    ),
+                  );
+                }),
                 SizedBox(height: 8.h),
               ],
             ),

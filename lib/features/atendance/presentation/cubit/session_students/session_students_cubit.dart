@@ -191,15 +191,29 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
         backgroundColorHex: ExcelColor.fromHexString('#0F172A'), // Slate 900
         horizontalAlign: HorizontalAlign.Center,
         verticalAlign: VerticalAlign.Center,
-        leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-        rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-        topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-        bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
+        leftBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
+        rightBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
+        topBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
+        bottomBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
       );
-      
+
       sheet.merge(CellIndex.indexByString("A3"), CellIndex.indexByString("G3"));
       var dateCell = sheet.cell(CellIndex.indexByString("A3"));
-      dateCell.value = TextCellValue('Generated on: ${DateTime.now().toString().substring(0, 16)}');
+      dateCell.value = TextCellValue(
+        'Generated on: ${DateTime.now().toString().substring(0, 16)}',
+      );
       dateCell.cellStyle = CellStyle(
         bold: true,
         fontSize: 11,
@@ -207,17 +221,35 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
         backgroundColorHex: ExcelColor.fromHexString('#F1F5F9'), // Slate 100
         horizontalAlign: HorizontalAlign.Center,
         verticalAlign: VerticalAlign.Center,
-        leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-        rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-        bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
+        leftBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
+        rightBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
+        bottomBorder: Border(
+          borderStyle: BorderStyle.Thin,
+          borderColorHex: ExcelColor.fromHexString('#000000'),
+        ),
       );
 
       // Statistics Grid
       int onTimeCount = allAttendances.where((e) => !e.isLate).length;
       int lateCount = allAttendances.where((e) => e.isLate).length;
 
-      void setStatBox(String col1, String col2, String label, String value, String colorHex) {
-        sheet.merge(CellIndex.indexByString(col1), CellIndex.indexByString(col2));
+      void setStatBox(
+        String col1,
+        String col2,
+        String label,
+        String value,
+        String colorHex,
+      ) {
+        sheet.merge(
+          CellIndex.indexByString(col1),
+          CellIndex.indexByString(col2),
+        );
         var cell = sheet.cell(CellIndex.indexByString(col1));
         cell.value = TextCellValue('$label: $value');
         cell.cellStyle = CellStyle(
@@ -227,15 +259,39 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
           backgroundColorHex: ExcelColor.fromHexString(colorHex),
           horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
-          leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
+          leftBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          rightBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          topBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          bottomBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
         );
       }
 
-      setStatBox('A5', 'C5', 'TOTAL STUDENTS', '${allAttendances.length}', '#334155'); // Slate 700
-      setStatBox('D5', 'E5', 'ON TIME', '$onTimeCount', '#16A34A'); // Emerald 600
+      setStatBox(
+        'A5',
+        'C5',
+        'TOTAL STUDENTS',
+        '${allAttendances.length}',
+        '#334155',
+      ); // Slate 700
+      setStatBox(
+        'D5',
+        'E5',
+        'ON TIME',
+        '$onTimeCount',
+        '#16A34A',
+      ); // Emerald 600
       setStatBox('F5', 'G5', 'LATE', '$lateCount', '#DC2626'); // Red 600
 
       // Table Headers (Row 7)
@@ -246,7 +302,7 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
         'SCAN TIME',
         'SESSION DATE',
         'SESSION TIME',
-        'STATUS'
+        'STATUS',
       ];
 
       for (var i = 0; i < headers.length; i++) {
@@ -261,10 +317,22 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
           backgroundColorHex: ExcelColor.fromHexString('#475569'), // Slate 600
           horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
-          leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-          bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
+          leftBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          rightBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          topBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
+          bottomBorder: Border(
+            borderStyle: BorderStyle.Thin,
+            borderColorHex: ExcelColor.fromHexString('#000000'),
+          ),
         );
       }
 
@@ -272,18 +340,20 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
       for (var row = 0; row < allAttendances.length; row++) {
         var student = allAttendances[row];
         var dataRow = row + 7;
-        
+
         final statusText = student.isLate ? 'LATE' : 'ON TIME';
-        final statusColor = student.isLate 
-            ? ExcelColor.fromHexString('#FEF2F2') 
+        final statusColor = student.isLate
+            ? ExcelColor.fromHexString('#FEF2F2')
             : ExcelColor.fromHexString('#F0FDF4');
         final fontColor = student.isLate
-            ? ExcelColor.fromHexString('#DC2626') 
+            ? ExcelColor.fromHexString('#DC2626')
             : ExcelColor.fromHexString('#16A34A');
 
         final rowData = [
           student.name,
-          (student.phoneNumber != null && student.phoneNumber!.isNotEmpty) ? student.phoneNumber! : 'غير متوفر',
+          (student.phoneNumber != null && student.phoneNumber!.isNotEmpty)
+              ? student.phoneNumber!
+              : 'غير متوفر',
           student.date,
           student.time,
           student.sessionDate ?? '-',
@@ -296,19 +366,37 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
             CellIndex.indexByColumnRow(columnIndex: col, rowIndex: dataRow),
           );
           cell.value = TextCellValue(rowData[col]);
-          
+
           bool isStatusCol = col == 6;
 
           cell.cellStyle = CellStyle(
-            horizontalAlign: col == 0 ? HorizontalAlign.Left : HorizontalAlign.Center,
+            horizontalAlign: col == 0
+                ? HorizontalAlign.Left
+                : HorizontalAlign.Center,
             verticalAlign: VerticalAlign.Center,
             bold: isStatusCol,
-            fontColorHex: isStatusCol ? fontColor : ExcelColor.fromHexString('#000000'),
-            backgroundColorHex: isStatusCol ? statusColor : ExcelColor.fromHexString('#FFFFFF'),
-            leftBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-            rightBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-            topBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
-            bottomBorder: Border(borderStyle: BorderStyle.Thin, borderColorHex: ExcelColor.fromHexString('#000000')),
+            fontColorHex: isStatusCol
+                ? fontColor
+                : ExcelColor.fromHexString('#000000'),
+            backgroundColorHex: isStatusCol
+                ? statusColor
+                : ExcelColor.fromHexString('#FFFFFF'),
+            leftBorder: Border(
+              borderStyle: BorderStyle.Thin,
+              borderColorHex: ExcelColor.fromHexString('#000000'),
+            ),
+            rightBorder: Border(
+              borderStyle: BorderStyle.Thin,
+              borderColorHex: ExcelColor.fromHexString('#000000'),
+            ),
+            topBorder: Border(
+              borderStyle: BorderStyle.Thin,
+              borderColorHex: ExcelColor.fromHexString('#000000'),
+            ),
+            bottomBorder: Border(
+              borderStyle: BorderStyle.Thin,
+              borderColorHex: ExcelColor.fromHexString('#000000'),
+            ),
           );
         }
       }

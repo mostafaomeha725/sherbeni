@@ -8,8 +8,13 @@ import 'package:qrattendance/features/atendance/presentation/screen/widgets/quiz
 
 class QuizGradesScreen extends StatefulWidget {
   final SessionEntity session;
+  final String quizTemplateId;
 
-  const QuizGradesScreen({super.key, required this.session});
+  const QuizGradesScreen({
+    super.key,
+    required this.session,
+    required this.quizTemplateId,
+  });
 
   @override
   State<QuizGradesScreen> createState() => _QuizGradesScreenState();
@@ -23,7 +28,7 @@ class _QuizGradesScreenState extends State<QuizGradesScreen> {
     super.initState();
     _cubit = sl<QuizGradesCubit>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cubit.fetchStudents(widget.session.id.toString());
+      _cubit.fetchStudents(widget.session.id.toString(), widget.quizTemplateId);
     });
   }
 
@@ -40,7 +45,10 @@ class _QuizGradesScreenState extends State<QuizGradesScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFFDFDFE),
         appBar: const CustomAppBar(title: "Quiz Grades"),
-        body: QuizGradesScreenBody(session: widget.session),
+        body: QuizGradesScreenBody(
+          session: widget.session,
+          quizTemplateId: widget.quizTemplateId,
+        ),
       ),
     );
   }

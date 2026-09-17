@@ -1,16 +1,20 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:qrattendance/core/constants/strings.dart';
 import 'package:qrattendance/core/theme/light_colors.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 
 class QuizGradesCardAvatar extends StatelessWidget {
   final String studentName;
   final bool isGraded;
+  final String? pictureUrl;
 
   const QuizGradesCardAvatar({
     super.key,
     required this.studentName,
     required this.isGraded,
+    this.pictureUrl,
   });
 
   String _getInitials(String name) {
@@ -51,18 +55,34 @@ class QuizGradesCardAvatar extends StatelessWidget {
           width: 1.5,
         ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Center(
-        child: AppText(
-          _getInitials(studentName),
-          alignment: AlignmentDirectional.center,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-            color: isGraded ? const Color(0xFF15803D) : AppLightColors.primary,
-            height: 1.2, // Help adjust Arabic vertical font metrics
-          ),
-        ),
+        child: (pictureUrl != null && pictureUrl!.isNotEmpty)
+            ? CachedNetworkImage(
+                imageUrl: pictureUrl!.startsWith('http')
+                    ? pictureUrl!
+                    : '${AppStrings.baseUrl}$pictureUrl',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                placeholder: (context, url) => _buildInitials(),
+                errorWidget: (context, url, error) => _buildInitials(),
+              )
+            : _buildInitials(),
+      ),
+    );
+  }
+
+  Widget _buildInitials() {
+    return AppText(
+      _getInitials(studentName),
+      alignment: AlignmentDirectional.center,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 18.sp,
+        fontWeight: FontWeight.bold,
+        color: isGraded ? const Color(0xFF15803D) : AppLightColors.primary,
+        height: 1.2, // Help adjust Arabic vertical font metrics
       ),
     );
   }

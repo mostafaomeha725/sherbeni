@@ -9,9 +9,15 @@ class EndPoints {
   static const String mobileLogin = 'api/v1/mobile/login';
   static const String mobileSubjects = 'api/v1/mobile/subjects';
   static const String mobileSessions = 'api/v1/mobile/sessions';
-  static String getSessionQuizzes(String sessionId) => 'api/v1/mobile/sessions/$sessionId/quizzes';
+  static String getSessionQuizzes(String sessionId) =>
+      'api/v1/mobile/sessions/$sessionId/quizzes';
+  static String getQuizStudents(String sessionId, String quizTemplateId) =>
+      'api/v1/mobile/sessions/$sessionId/quizzes/$quizTemplateId/students';
+  static String updateQuizGrade(String quizAttemptId) =>
+      'api/v1/mobile/quiz-attempts/$quizAttemptId/grade';
   static const String onlineScan = 'api/v1/mobile/attendance/scan';
-  static String getSessionAttendances(String sessionId) => 'api/v1/mobile/sessions/$sessionId/attendances';
+  static String getSessionAttendances(String sessionId) =>
+      'api/v1/mobile/sessions/$sessionId/attendances';
   static const String recordAttendance = 'mobile/attendance';
   static const String offlineBulkRecord = 'mobile/attendance/bulk';
   static const String logout = 'Authentication/logout';

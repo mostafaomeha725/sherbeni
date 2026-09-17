@@ -6,7 +6,7 @@ part 'student_model.g.dart';
 class StudentModel extends HiveObject {
   @HiveField(0)
   final String id; // Maps to API's `uid`
-  
+
   @HiveField(1)
   final String name;
 

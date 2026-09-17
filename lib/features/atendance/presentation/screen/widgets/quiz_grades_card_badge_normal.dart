@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 
 class QuizGradesCardBadgeNormal extends StatelessWidget {
-  final int? currentGrade;
+  final num? currentGrade;
   final VoidCallback onTap;
 
   const QuizGradesCardBadgeNormal({
@@ -45,7 +45,11 @@ class QuizGradesCardBadgeNormal extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AppText(
-              isGraded ? currentGrade.toString() : 'Enter',
+              isGraded
+                  ? (currentGrade! == currentGrade!.toInt()
+                        ? currentGrade!.toInt().toString()
+                        : currentGrade.toString())
+                  : 'Enter',
               style: TextStyle(
                 fontSize: isGraded ? 16.sp : 10.sp,
                 fontWeight: isGraded ? FontWeight.w900 : FontWeight.w700,

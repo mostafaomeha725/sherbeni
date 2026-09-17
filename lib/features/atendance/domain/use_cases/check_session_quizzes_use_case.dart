@@ -7,11 +7,11 @@ class CheckSessionQuizzesUseCase {
 
   CheckSessionQuizzesUseCase(this.repository);
 
-  Future<Either<Failure, bool>> call(String sessionId) async {
-    return await repository.checkSessionHasQuizzes(sessionId);
+  Future<Either<Failure, List<dynamic>>> call(String sessionId) async {
+    return await repository.getSessionQuizzes(sessionId);
   }
 
-  Future<Either<Failure, bool?>> getCached(String sessionId) async {
+  Future<Either<Failure, List<dynamic>?>> getCached(String sessionId) async {
     return await repository.getCachedSessionQuizzes(sessionId);
   }
 }

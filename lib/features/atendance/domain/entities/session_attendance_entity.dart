@@ -27,15 +27,15 @@ class SessionAttendanceEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        attendanceId,
-        studentId,
-        name,
-        picture,
-        phoneNumber,
-        date,
-        time,
-        sessionDate,
-        sessionTime,
-        isLate,
-      ];
+    attendanceId,
+    studentId,
+    name,
+    picture,
+    phoneNumber,
+    date,
+    time,
+    sessionDate,
+    sessionTime,
+    isLate,
+  ];
 }

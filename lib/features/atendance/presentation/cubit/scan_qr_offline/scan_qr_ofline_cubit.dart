@@ -9,7 +9,10 @@ class ScanQrOflineCubit extends Cubit<ScanQrOflineState> {
   final SaveOfflineAttendanceUseCase saveOfflineAttendanceUseCase;
   final SyncOfflineDataUseCase syncOfflineDataUseCase;
 
-  ScanQrOflineCubit(this.saveOfflineAttendanceUseCase, this.syncOfflineDataUseCase) : super(ScanQrOflineInitial());
+  ScanQrOflineCubit(
+    this.saveOfflineAttendanceUseCase,
+    this.syncOfflineDataUseCase,
+  ) : super(ScanQrOflineInitial());
 
   Future<String> saveOffline({
     required String uid,

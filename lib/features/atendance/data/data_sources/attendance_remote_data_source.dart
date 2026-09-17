@@ -8,8 +8,22 @@ abstract class AttendanceRemoteDataSource {
   Future<Map<String, dynamic>> recordAttendance(Map<String, dynamic> data);
   Future<List<SessionModel>> getSessions();
   Future<List<SessionModel>> getClasses(String subjectId);
-  Future<Map<String, dynamic>> getSessionAttendances(String sessionId, int page, int limit);
+  Future<Map<String, dynamic>> getSessionAttendances(
+    String sessionId,
+    int page,
+    int limit,
+  );
   Future<Map<String, dynamic>> getSessionQuizzes(String sessionId);
+  Future<Map<String, dynamic>> getQuizStudents(
+    String sessionId,
+    String quizTemplateId,
+    int page,
+    int limit,
+    String search,
+    String gradingStatus,
+  );
+
+  Future<Map<String, dynamic>> updateQuizGrade(String quizAttemptId, num grade);
 }
 
 class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
@@ -18,43 +32,42 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   AttendanceRemoteDataSourceImpl(this.networkService);
 
   @override
-  Future<Map<String, dynamic>> scanOnline(String qrCode, String sessionId) async {
+  Future<Map<String, dynamic>> scanOnline(
+    String qrCode,
+    String sessionId,
+  ) async {
     final resultEither = await networkService.postData(
       endPoint: EndPoints.onlineScan,
-      data: {
-        'qr_code': qrCode,
-      },
+      data: {'qr_code': qrCode},
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['statusCode'] == 201 || response['statusCode'] == 200) {
-          return response;
-        } else {
-          throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
-        }
-      },
-    );
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['statusCode'] == 201 || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
+      }
+    });
   }
 
   @override
-  Future<Map<String, dynamic>> recordAttendance(Map<String, dynamic> data) async {
+  Future<Map<String, dynamic>> recordAttendance(
+    Map<String, dynamic> data,
+  ) async {
     final resultEither = await networkService.postData(
       endPoint: EndPoints.recordAttendance,
       data: data,
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['success'] == true || response['statusCode'] == 200 || response['statusCode'] == 201) {
-          return response;
-        } else {
-          throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
-        }
-      },
-    );
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true ||
+          response['statusCode'] == 200 ||
+          response['statusCode'] == 201) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
+      }
+    });
   }
 
   @override
@@ -64,16 +77,13 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
       data: data,
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['success'] == true || response['status'] == true) {
-          return response;
-        } else {
-          throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
-        }
-      },
-    );
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true || response['status'] == true) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'خطأ غير معروف من الخادم');
+      }
+    });
   }
 
   @override
@@ -82,20 +92,17 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
       endPoint: EndPoints.mobileSubjects,
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['success'] == true || response['statusCode'] == 200) {
-          final data = response['data'] as List?;
-          if (data != null) {
-            return data.map((e) => SessionModel.fromJson(e)).toList();
-          }
-          return [];
-        } else {
-          throw Exception(response['message'] ?? 'فشل في جلب المواد');
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true || response['statusCode'] == 200) {
+        final data = response['data'] as List?;
+        if (data != null) {
+          return data.map((e) => SessionModel.fromJson(e)).toList();
         }
-      },
-    );
+        return [];
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب المواد');
+      }
+    });
   }
 
   @override
@@ -105,42 +112,37 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
       queryParameters: {'subject_id': subjectId},
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['success'] == true || response['statusCode'] == 200) {
-          final data = response['data'] as List?;
-          if (data != null) {
-            return data.map((e) => SessionModel.fromJson(e)).toList();
-          }
-          return [];
-        } else {
-          throw Exception(response['message'] ?? 'فشل في جلب الجلسات');
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true || response['statusCode'] == 200) {
+        final data = response['data'] as List?;
+        if (data != null) {
+          return data.map((e) => SessionModel.fromJson(e)).toList();
         }
-      },
-    );
+        return [];
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب الجلسات');
+      }
+    });
   }
 
   @override
-  Future<Map<String, dynamic>> getSessionAttendances(String sessionId, int page, int limit) async {
+  Future<Map<String, dynamic>> getSessionAttendances(
+    String sessionId,
+    int page,
+    int limit,
+  ) async {
     final resultEither = await networkService.getData(
       endPoint: EndPoints.getSessionAttendances(sessionId),
-      queryParameters: {
-        'page': page,
-        'limit': limit,
-      },
+      queryParameters: {'page': page, 'limit': limit},
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['status'] == true || response['statusCode'] == 200) {
-          return response;
-        } else {
-          throw Exception(response['message'] ?? 'فشل في جلب الحضور');
-        }
-      },
-    );
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب الحضور');
+      }
+    });
   }
 
   @override
@@ -149,15 +151,59 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
       endPoint: EndPoints.getSessionQuizzes(sessionId),
     );
 
-    return resultEither.fold(
-      (failure) => throw failure,
-      (response) {
-        if (response['status'] == true || response['statusCode'] == 200) {
-          return response;
-        } else {
-          throw Exception(response['message'] ?? 'فشل في جلب الكويزات');
-        }
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب الكويزات');
+      }
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> getQuizStudents(
+    String sessionId,
+    String quizTemplateId,
+    int page,
+    int limit,
+    String search,
+    String gradingStatus,
+  ) async {
+    final resultEither = await networkService.getData(
+      endPoint: EndPoints.getQuizStudents(sessionId, quizTemplateId),
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (search.isNotEmpty) 'search': search,
+        if (gradingStatus.isNotEmpty) 'grading_status': gradingStatus,
       },
     );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب طلاب الكويز');
+      }
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateQuizGrade(
+    String quizAttemptId,
+    num grade,
+  ) async {
+    final resultEither = await networkService.patchData(
+      endPoint: EndPoints.updateQuizGrade(quizAttemptId),
+      data: {'grade': grade},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل تحديث الدرجة');
+      }
+    });
   }
 }

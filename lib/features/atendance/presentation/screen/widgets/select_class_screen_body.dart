@@ -52,10 +52,16 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
               showError(state.message);
             } else if (state is CheckSessionQuizzesSuccess) {
               hideLoading();
-              if (state.hasQuizzes) {
-                SelectClassActionSheet.show(context, state.session);
+              if (state.quizzes.isNotEmpty) {
+                SelectClassActionSheet.show(
+                  context,
+                  state.session,
+                  state.quizzes,
+                );
               } else {
-                GoRouter.of(context).push(Routes.scanQrScreen, extra: state.session);
+                GoRouter.of(
+                  context,
+                ).push(Routes.scanQrScreen, extra: state.session);
               }
             }
           },
@@ -91,7 +97,9 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
                           return SelectClassCard(
                             session: session,
                             onTap: () {
-                              context.read<CheckSessionQuizzesCubit>().checkQuizzes(session);
+                              context
+                                  .read<CheckSessionQuizzesCubit>()
+                                  .checkQuizzes(session);
                             },
                           );
                         },

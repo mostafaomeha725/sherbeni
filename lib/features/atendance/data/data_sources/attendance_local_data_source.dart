@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import '../model/attendance_model.dart';
 import '../model/student_model.dart';
 import '../model/session_model.dart';
+import '../model/pending_quiz_grade_model.dart';
 
 abstract class AttendanceLocalDataSource {
   Future<void> saveOfflineAttendance(AttendanceModel model);
@@ -27,6 +28,14 @@ abstract class AttendanceLocalDataSource {
 
   Future<void> saveSessionQuizzesCache(String sessionId, String jsonData);
   Future<String?> getSessionQuizzesCache(String sessionId);
+  Future<void> saveQuizStudentsCache(String key, String jsonData);
+  Future<String?> getQuizStudentsCache(String key);
+
+  Future<void> savePendingQuizGrade(PendingQuizGradeModel model);
+  Future<List<PendingQuizGradeModel>> getPendingQuizGrades();
+  Future<PendingQuizGradeModel?> getPendingQuizGrade(String quizAttemptId);
+  Future<void> deletePendingQuizGrade(String quizAttemptId);
+  Future<void> markPendingQuizGradeAsFailed(String quizAttemptId, String error);
 }
 
 class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
@@ -76,6 +85,45 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
       }
     }
     return null;
+  }
+
+  @override
+  Future<void> savePendingQuizGrade(PendingQuizGradeModel model) async {
+    final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
+    await box.put(model.quizAttemptId, model); // Use put to prevent duplicates
+  }
+
+  @override
+  Future<List<PendingQuizGradeModel>> getPendingQuizGrades() async {
+    final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
+    return box.values.toList();
+  }
+
+  @override
+  Future<PendingQuizGradeModel?> getPendingQuizGrade(
+    String quizAttemptId,
+  ) async {
+    final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
+    return box.get(quizAttemptId);
+  }
+
+  @override
+  Future<void> deletePendingQuizGrade(String quizAttemptId) async {
+    final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
+    await box.delete(quizAttemptId);
+  }
+
+  @override
+  Future<void> markPendingQuizGradeAsFailed(
+    String quizAttemptId,
+    String error,
+  ) async {
+    final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
+    final model = box.get(quizAttemptId);
+    if (model != null) {
+      model.error = error;
+      await model.save(); // HiveObject save
+    }
   }
 
   @override
@@ -154,6 +202,24 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
         ? Hive.box<String>('attendancesCache')
         : await Hive.openBox<String>('attendancesCache');
     return box.get(sessionId);
+  }
+
+  @override
+  Future<void> saveQuizStudentsCache(String key, String jsonData) async {
+    final boxName = 'quiz_students_cache';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<String>(boxName)
+        : await Hive.openBox<String>(boxName);
+    await box.put(key, jsonData);
+  }
+
+  @override
+  Future<String?> getQuizStudentsCache(String key) async {
+    final boxName = 'quiz_students_cache';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<String>(boxName)
+        : await Hive.openBox<String>(boxName);
+    return box.get(key);
   }
 
   @override

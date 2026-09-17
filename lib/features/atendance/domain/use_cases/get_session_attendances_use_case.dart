@@ -7,7 +7,11 @@ class GetSessionAttendancesUseCase {
 
   GetSessionAttendancesUseCase(this.repository);
 
-  Future<Either<Failure, Map<String, dynamic>>> call(String sessionId, int page, int limit) {
+  Future<Either<Failure, Map<String, dynamic>>> call(
+    String sessionId,
+    int page,
+    int limit,
+  ) {
     return repository.getSessionAttendances(sessionId, page, limit);
   }
 }

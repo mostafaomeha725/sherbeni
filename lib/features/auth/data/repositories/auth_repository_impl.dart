@@ -32,7 +32,9 @@ class AuthRepositoryImpl implements AuthRepository {
       if (e is Failure) {
         return Left(e);
       }
-      return Left(ServerFailure(message: 'حدث خطأ غير متوقع أثناء تسجيل الدخول: $e'));
+      return Left(
+        ServerFailure(message: 'حدث خطأ غير متوقع أثناء تسجيل الدخول: $e'),
+      );
     }
   }
 }

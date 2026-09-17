@@ -27,7 +27,7 @@ class AuthorizationInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
       print("Unauthenticated → redirect to login");
-      
+
       // Clear all cached data (like token)
       final prefs = sl<PreferencesStorage>();
       await prefs.clear();

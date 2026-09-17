@@ -3,12 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_state.dart';
 
 class QuizGradesFilterChip extends StatelessWidget {
   final String title;
-  final QuizGradeFilter filter;
-  final QuizGradeFilter currentFilter;
+  final String filter;
+  final String currentFilter;
 
   const QuizGradesFilterChip({
     super.key,

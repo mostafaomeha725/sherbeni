@@ -18,9 +18,7 @@ class MathmagicianApp extends StatelessWidget {
       builder: (context, child) {
         return MultiBlocProvider(
           providers: [
-            BlocProvider(
-              create: (_) => sl<ScanQrOflineCubit>(),
-            ),
+            BlocProvider(create: (_) => sl<ScanQrOflineCubit>()),
             // Add other global cubits as needed
           ],
           child: MaterialApp.router(

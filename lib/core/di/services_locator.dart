@@ -33,6 +33,7 @@ import 'package:qrattendance/features/atendance/domain/use_cases/get_session_att
 import 'package:qrattendance/features/atendance/domain/use_cases/get_offline_session_attendances_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_quiz_students_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/check_session_quizzes_use_case.dart';
+import 'package:qrattendance/features/atendance/domain/use_cases/update_quiz_grade_use_case.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/session_students/session_students_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
@@ -65,8 +66,10 @@ class ServiceLocator {
 
   void _initAuth() {
     // Data Sources
-    sl.registerLazySingleton<AuthRemoteDataSource>(() => AuthRemoteDataSourceImpl(sl()));
-    
+    sl.registerLazySingleton<AuthRemoteDataSource>(
+      () => AuthRemoteDataSourceImpl(sl()),
+    );
+
     // Repository
     sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
 
@@ -79,15 +82,21 @@ class ServiceLocator {
 
   void _initAttendance() {
     // Data Sources
-    sl.registerLazySingleton<AttendanceLocalDataSource>(() => AttendanceLocalDataSourceImpl());
-    sl.registerLazySingleton<AttendanceRemoteDataSource>(() => AttendanceRemoteDataSourceImpl(sl()));
+    sl.registerLazySingleton<AttendanceLocalDataSource>(
+      () => AttendanceLocalDataSourceImpl(),
+    );
+    sl.registerLazySingleton<AttendanceRemoteDataSource>(
+      () => AttendanceRemoteDataSourceImpl(sl()),
+    );
 
     // Repository
-    sl.registerLazySingleton<AttendanceRepository>(() => AttendanceRepositoryImpl(
-      localDataSource: sl(),
-      remoteDataSource: sl(),
-      connectivity: sl(),
-    ));
+    sl.registerLazySingleton<AttendanceRepository>(
+      () => AttendanceRepositoryImpl(
+        localDataSource: sl(),
+        remoteDataSource: sl(),
+        connectivity: sl(),
+      ),
+    );
 
     // UseCases
     sl.registerLazySingleton(() => GetSessionsUseCase(sl()));
@@ -98,8 +107,10 @@ class ServiceLocator {
     sl.registerLazySingleton(() => RecordOnlineAttendanceUseCase(sl()));
     sl.registerLazySingleton(() => GetSessionAttendancesUseCase(sl()));
     sl.registerLazySingleton(() => GetOfflineSessionAttendancesUseCase(sl()));
-    sl.registerLazySingleton(() => GetQuizStudentsUseCase());
+    sl.registerLazySingleton(() => GetQuizStudentsUseCase(sl()));
+    sl.registerLazySingleton(() => GetCachedQuizStudentsUseCase(sl()));
     sl.registerLazySingleton(() => CheckSessionQuizzesUseCase(sl()));
+    sl.registerLazySingleton(() => UpdateQuizGradeUseCase(sl()));
 
     // Cubits (Factory)
     sl.registerFactory(() => ScanQrOflineCubit(sl(), sl()));
@@ -108,7 +119,7 @@ class ServiceLocator {
     sl.registerFactory(() => ShowStudentDataCubit(sl(), sl()));
     sl.registerFactory(() => RecordOnlineAttendanceCubit(sl()));
     sl.registerFactory(() => SessionStudentsCubit(sl(), sl(), sl()));
-    sl.registerFactory(() => QuizGradesCubit(sl()));
+    sl.registerFactory(() => QuizGradesCubit(sl(), sl(), sl()));
     sl.registerFactory(() => CheckSessionQuizzesCubit(sl()));
   }
 }

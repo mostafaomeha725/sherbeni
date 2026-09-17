@@ -80,10 +80,7 @@ class BounceItState extends State<BounceIt>
       },
       onTapCancel: () => _controller.reverse(),
       onTap: widget.onPressed,
-      child: Transform.scale(
-        scale: _scale, 
-        child: widget.child,
-      ),
+      child: Transform.scale(scale: _scale, child: widget.child),
     );
   }
 }

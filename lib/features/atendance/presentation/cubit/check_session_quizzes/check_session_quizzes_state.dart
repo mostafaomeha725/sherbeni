@@ -7,11 +7,11 @@ class CheckSessionQuizzesInitial extends CheckSessionQuizzesState {}
 
 class CheckSessionQuizzesLoading extends CheckSessionQuizzesState {}
 
-class CheckSessionQuizzesSuccess extends CheckSessionQuizzesState {
-  final bool hasQuizzes;
+final class CheckSessionQuizzesSuccess extends CheckSessionQuizzesState {
+  final List<dynamic> quizzes;
   final SessionEntity session;
 
-  CheckSessionQuizzesSuccess(this.hasQuizzes, this.session);
+  CheckSessionQuizzesSuccess(this.quizzes, this.session);
 }
 
 class CheckSessionQuizzesFailure extends CheckSessionQuizzesState {

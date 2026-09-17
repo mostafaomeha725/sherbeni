@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
-import 'package:qrattendance/features/atendance/domain/entities/student_entity.dart';
+import 'package:qrattendance/features/atendance/domain/entities/quiz_student_entity.dart';
 
 class QuizGradesCardDetails extends StatelessWidget {
-  final StudentEntity student;
+  final QuizStudentEntity student;
 
   const QuizGradesCardDetails({super.key, required this.student});
 
@@ -39,7 +39,7 @@ class QuizGradesCardDetails extends StatelessWidget {
             ),
             SizedBox(width: 4.w),
             AppText(
-              student.studentQrCode,
+              student.studentCode,
               style: TextStyle(
                 fontSize: 13.sp,
                 color: const Color(0xFF64748B),
@@ -49,24 +49,25 @@ class QuizGradesCardDetails extends StatelessWidget {
           ],
         ),
         SizedBox(height: 4.h),
-        Row(
-          children: [
-            Icon(
-              Icons.phone_rounded,
-              size: 14.sp,
-              color: const Color(0xFF64748B),
-            ),
-            SizedBox(width: 4.w),
-            AppText(
-              student.studentPhone,
-              style: TextStyle(
-                fontSize: 13.sp,
+        if (student.phone != null && student.phone!.isNotEmpty)
+          Row(
+            children: [
+              Icon(
+                Icons.phone_rounded,
+                size: 14.sp,
                 color: const Color(0xFF64748B),
-                fontWeight: FontWeight.w600,
               ),
-            ),
-          ],
-        ),
+              SizedBox(width: 4.w),
+              AppText(
+                student.phone!,
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }

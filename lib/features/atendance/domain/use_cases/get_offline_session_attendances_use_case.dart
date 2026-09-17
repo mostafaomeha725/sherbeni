@@ -8,7 +8,9 @@ class GetOfflineSessionAttendancesUseCase {
 
   GetOfflineSessionAttendancesUseCase(this.repository);
 
-  Future<Either<Failure, List<SessionAttendanceEntity>>> call(String sessionId) {
+  Future<Either<Failure, List<SessionAttendanceEntity>>> call(
+    String sessionId,
+  ) {
     return repository.getOfflineSessionAttendances(sessionId);
   }
 }

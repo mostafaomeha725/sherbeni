@@ -29,7 +29,6 @@ class _ScanQrScreenBodyState extends State<ScanQrScreenBody>
         ScanQrConnectivityMixin,
         ScanQrCameraMixin,
         ScanQrHandlerMixin {
-  
   static String? lastShownSyncError;
 
   @override
@@ -108,7 +107,8 @@ class _ScanQrScreenBodyState extends State<ScanQrScreenBody>
                 showMessage(state.message, DialogType.success);
               }
             } else if (state is ScanQrOflineFailure) {
-              if (_ScanQrScreenBodyState.lastShownSyncError != state.errorMessage) {
+              if (_ScanQrScreenBodyState.lastShownSyncError !=
+                  state.errorMessage) {
                 _ScanQrScreenBodyState.lastShownSyncError = state.errorMessage;
                 showMessage(state.errorMessage, DialogType.error);
               }

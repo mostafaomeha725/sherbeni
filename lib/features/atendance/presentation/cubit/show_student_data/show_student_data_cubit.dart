@@ -10,7 +10,10 @@ class ShowStudentDataCubit extends Cubit<ShowStudentDataState> {
   final GetStudentDataUseCase getStudentDataUseCase;
   final ScanOnlineAttendanceUseCase scanOnlineAttendanceUseCase;
 
-  ShowStudentDataCubit(this.getStudentDataUseCase, this.scanOnlineAttendanceUseCase) : super(ShowStudentDataInitial());
+  ShowStudentDataCubit(
+    this.getStudentDataUseCase,
+    this.scanOnlineAttendanceUseCase,
+  ) : super(ShowStudentDataInitial());
 
   Future<void> fetchStudentData({
     required String uid,

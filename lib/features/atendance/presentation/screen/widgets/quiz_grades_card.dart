@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:qrattendance/core/widgets/bouncing_widgets.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
-import 'package:qrattendance/features/atendance/domain/entities/student_entity.dart';
+import 'package:qrattendance/features/atendance/domain/entities/quiz_student_entity.dart';
 import 'package:qrattendance/core/theme/light_colors.dart';
 
 import 'quiz_grades_card_avatar.dart';
@@ -10,10 +10,10 @@ import 'quiz_grades_card_details.dart';
 import 'quiz_grades_card_badge.dart';
 
 class QuizGradesCard extends StatelessWidget {
-  final StudentEntity student;
-  final int? currentGrade;
-  final int? quizMaxGrade;
-  final void Function(int) onGradeEntered;
+  final QuizStudentEntity student;
+  final num? currentGrade;
+  final num? quizMaxGrade;
+  final void Function(num) onGradeEntered;
 
   const QuizGradesCard({
     super.key,
@@ -55,9 +55,9 @@ class QuizGradesCard extends StatelessWidget {
               // Status Indicator Line
               Container(
                 width: 5.w,
-                color: student.isAttended == null
+                color: student.offlineStatus == 'unknown'
                     ? AppLightColors.primary
-                    : student.isAttended!
+                    : student.offlineStatus == 'present'
                     ? const Color(0xFF15803D) // Present (Green)
                     : const Color(0xFFB91C1C), // Absent (Red)
               ),
@@ -72,6 +72,7 @@ class QuizGradesCard extends StatelessWidget {
                       QuizGradesCardAvatar(
                         studentName: student.name,
                         isGraded: isGraded,
+                        pictureUrl: student.picture,
                       ),
                       SizedBox(width: 16.w),
                       Expanded(child: QuizGradesCardDetails(student: student)),
@@ -85,25 +86,25 @@ class QuizGradesCard extends StatelessWidget {
                               vertical: 4.h,
                             ),
                             decoration: BoxDecoration(
-                              color: student.isAttended == null
+                              color: student.offlineStatus == 'unknown'
                                   ? const Color(0xFFF1F5F9) // Light Gray
-                                  : student.isAttended!
+                                  : student.offlineStatus == 'present'
                                   ? const Color(0xFFDCFCE7) // Light Green
                                   : const Color(0xFFFEE2E2), // Light Red
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: AppText(
-                              student.isAttended == null
+                              student.offlineStatus == 'unknown'
                                   ? 'غير متوفر'
-                                  : student.isAttended!
+                                  : student.offlineStatus == 'present'
                                   ? 'حاضر'
                                   : 'غائب',
                               style: TextStyle(
                                 fontSize: 11.sp,
                                 fontWeight: FontWeight.w700,
-                                color: student.isAttended == null
+                                color: student.offlineStatus == 'unknown'
                                     ? const Color(0xFF64748B) // Slate 500
-                                    : student.isAttended!
+                                    : student.offlineStatus == 'present'
                                     ? const Color(0xFF15803D)
                                     : const Color(0xFFB91C1C),
                               ),

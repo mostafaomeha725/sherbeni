@@ -16,10 +16,10 @@ class CheckSessionQuizzesCubit extends Cubit<CheckSessionQuizzesState> {
     bool hasCache = false;
     final cacheResult = await checkSessionQuizzesUseCase.getCached(session.id);
 
-    cacheResult.fold((_) {}, (hasQuizzes) {
-      if (hasQuizzes != null) {
+    cacheResult.fold((_) {}, (quizzes) {
+      if (quizzes != null) {
         hasCache = true;
-        emit(CheckSessionQuizzesSuccess(hasQuizzes, session));
+        emit(CheckSessionQuizzesSuccess(quizzes, session));
       }
     });
 
@@ -38,11 +38,11 @@ class CheckSessionQuizzesCubit extends Cubit<CheckSessionQuizzesState> {
           emit(CheckSessionQuizzesFailure(failure.message));
         }
       },
-      (hasQuizzes) {
+      (quizzes) {
         // Only emit Success if we didn't already navigate using the cache
         // Emitting twice would trigger the BlocListener's navigation twice.
         if (!hasCache) {
-          emit(CheckSessionQuizzesSuccess(hasQuizzes, session));
+          emit(CheckSessionQuizzesSuccess(quizzes, session));
         }
       },
     );

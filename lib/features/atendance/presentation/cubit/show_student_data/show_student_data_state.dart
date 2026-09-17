@@ -8,7 +8,8 @@ final class ShowStudentDataInitial extends ShowStudentDataState {}
 final class ShowStudentDataLoading extends ShowStudentDataState {}
 
 final class ShowStudentDataSuccess extends ShowStudentDataState {
-  final StudentEntity student; // Kept property name as student to avoid breaking presentation layer
+  final StudentEntity
+  student; // Kept property name as student to avoid breaking presentation layer
   final bool isOnline;
 
   ShowStudentDataSuccess(this.student, {required this.isOnline});

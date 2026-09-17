@@ -4,9 +4,9 @@ import 'quiz_grades_card_badge_editing.dart';
 import 'quiz_grades_card_badge_normal.dart';
 
 class QuizGradesCardBadge extends StatefulWidget {
-  final int? currentGrade;
-  final int? quizMaxGrade;
-  final void Function(int) onGradeEntered;
+  final num? currentGrade;
+  final num? quizMaxGrade;
+  final void Function(num) onGradeEntered;
 
   const QuizGradesCardBadge({
     super.key,
@@ -50,7 +50,7 @@ class _QuizGradesCardBadgeState extends State<QuizGradesCardBadge> {
 
   void _saveGrade() {
     if (_controller.text.isNotEmpty) {
-      final grade = int.tryParse(_controller.text);
+      final grade = num.tryParse(_controller.text);
       if (grade != null) {
         if (widget.quizMaxGrade != null && grade > widget.quizMaxGrade!) {
           showError('لا يمكن إدخال درجة أكبر من ${widget.quizMaxGrade}');

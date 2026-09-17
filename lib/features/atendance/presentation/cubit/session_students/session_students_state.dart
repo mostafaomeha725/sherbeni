@@ -40,7 +40,12 @@ class SessionStudentsLoaded extends SessionStudentsState {
   }
 
   @override
-  List<Object?> get props => [attendances, pagination, isFetchingMore, isOffline];
+  List<Object?> get props => [
+    attendances,
+    pagination,
+    isFetchingMore,
+    isOffline,
+  ];
 }
 
 class SessionStudentsFailure extends SessionStudentsState {

@@ -5,11 +5,13 @@ import 'package:qrattendance/core/widgets/custom_text.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   final String text;
+  final String subtitle;
   final IconData icon;
 
   const EmptyStateWidget({
     super.key,
     required this.text,
+    this.subtitle = 'No data available to display at the moment.',
     this.icon = Icons.folder_open_rounded,
   });
 
@@ -45,7 +47,7 @@ class EmptyStateWidget extends StatelessWidget {
               ),
               SizedBox(height: 8.h),
               AppText(
-                'No data available to display at the moment.',
+                subtitle,
                 alignment: AlignmentDirectional.center,
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -53,7 +55,7 @@ class EmptyStateWidget extends StatelessWidget {
                   color: const Color(0xFF777777),
                   fontWeight: FontWeight.w400,
                 ),
-                maxLines: 2,
+                maxLines: 3,
               ),
             ],
           ),

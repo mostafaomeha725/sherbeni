@@ -7,12 +7,10 @@ part 'record_online_attendance_state.dart';
 class RecordOnlineAttendanceCubit extends Cubit<RecordOnlineAttendanceState> {
   final RecordOnlineAttendanceUseCase recordOnlineAttendanceUseCase;
 
-  RecordOnlineAttendanceCubit(this.recordOnlineAttendanceUseCase) : super(RecordOnlineAttendanceInitial());
+  RecordOnlineAttendanceCubit(this.recordOnlineAttendanceUseCase)
+    : super(RecordOnlineAttendanceInitial());
 
-  Future<void> record({
-    required String uid,
-    required String sessionId,
-  }) async {
+  Future<void> record({required String uid, required String sessionId}) async {
     emit(RecordOnlineAttendanceLoading());
 
     final result = await recordOnlineAttendanceUseCase.call(

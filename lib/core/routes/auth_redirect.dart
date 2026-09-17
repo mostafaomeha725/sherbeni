@@ -13,7 +13,9 @@ class AuthRedirect extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Listen to connectivity changes globally
-    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) async {
+    Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) async {
       final hasInternet =
           results.contains(ConnectivityResult.wifi) ||
           results.contains(ConnectivityResult.mobile);

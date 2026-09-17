@@ -12,16 +12,15 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
   Future<void> fetchClasses(String subjectId) async {
     // 1. Check local cache first
     bool hasCache = false;
-    final cacheResult = await attendanceRepository.getCachedClasses(subjectId: subjectId);
-    cacheResult.fold(
-      (_) {},
-      (classes) {
-        if (classes.isNotEmpty) {
-          hasCache = true;
-          emit(ShowClassesSuccess(classes));
-        }
-      },
+    final cacheResult = await attendanceRepository.getCachedClasses(
+      subjectId: subjectId,
     );
+    cacheResult.fold((_) {}, (classes) {
+      if (classes.isNotEmpty) {
+        hasCache = true;
+        emit(ShowClassesSuccess(classes));
+      }
+    });
 
     // 2. If no cache, emit Loading to show EasyLoading overlay
     if (!hasCache) {
@@ -29,15 +28,14 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
     }
 
     // 3. Fetch remote (silently if cache exists)
-    final result = await attendanceRepository.fetchClasses(subjectId: subjectId);
-
-    result.fold(
-      (failure) {
-        if (!hasCache) {
-          emit(ShowClassesFailure(failure.message));
-        }
-      },
-      (classes) => emit(ShowClassesSuccess(classes)),
+    final result = await attendanceRepository.fetchClasses(
+      subjectId: subjectId,
     );
+
+    result.fold((failure) {
+      if (!hasCache) {
+        emit(ShowClassesFailure(failure.message));
+      }
+    }, (classes) => emit(ShowClassesSuccess(classes)));
   }
 }
