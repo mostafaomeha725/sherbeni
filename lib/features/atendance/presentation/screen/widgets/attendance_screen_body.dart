@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qrattendance/core/routes/route_paths.dart';
 import 'package:qrattendance/core/utils/easy_loading.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
+import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_sessions/show_sessions_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/attendance_header.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/session_card.dart';
@@ -34,6 +35,25 @@ class _AttendanceScreenBodyState extends State<AttendanceScreenBody> {
       listener: (context, state) {
         if (state is ShowSessionsLoading) {
           showLoading();
+        } else if (state is ShowSessionsOfflineFallback) {
+          hideLoading();
+          GoRouter.of(context).push(
+            Routes.scanQrScreen,
+            extra: const SessionEntity(
+              id: 'offline',
+              title: 'تسجيل الحضور (أوفلاين)',
+              description: '',
+              courseId: '',
+              courseTitle: '',
+              startTime: '',
+              endTime: '',
+              status: '',
+              hasHomework: false,
+              totalAttendance: 0,
+              attendedCount: 0,
+              lateCount: 0,
+            ),
+          );
         } else {
           hideLoading();
         }

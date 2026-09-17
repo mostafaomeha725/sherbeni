@@ -6,6 +6,8 @@ import 'package:qrattendance/features/atendance/domain/entities/session_entity.d
 import 'package:qrattendance/features/atendance/presentation/cubit/show_classes/show_classes_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_screen_body.dart';
 
+import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
+
 class SelectClassScreen extends StatelessWidget {
   final SessionEntity subject;
 
@@ -13,8 +15,11 @@ class SelectClassScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => sl<ShowClassesCubit>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => sl<ShowClassesCubit>()),
+        BlocProvider(create: (context) => sl<CheckSessionQuizzesCubit>()),
+      ],
       child: Scaffold(
         backgroundColor: const Color(0xFFFDFDFE),
         appBar: const CustomAppBar(title: 'Sessions'),

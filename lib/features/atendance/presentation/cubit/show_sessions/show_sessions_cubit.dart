@@ -14,15 +14,12 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
     // 1. Check local cache first
     bool hasCache = false;
     final cacheResult = await getSessionsUseCase.getCached();
-    cacheResult.fold(
-      (_) {},
-      (sessions) {
-        if (sessions.isNotEmpty) {
-          hasCache = true;
-          emit(ShowSessionsSuccess(sessions));
-        }
-      },
-    );
+    cacheResult.fold((_) {}, (sessions) {
+      if (sessions.isNotEmpty) {
+        hasCache = true;
+        emit(ShowSessionsSuccess(sessions));
+      }
+    });
 
     // 2. If no cache, emit Loading to show EasyLoading overlay
     if (!hasCache) {
@@ -32,14 +29,15 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
     // 3. Fetch remote (silently if cache exists)
     final result = await getSessionsUseCase.call(token: token);
 
-    result.fold(
-      (failure) {
-        // Only show failure if we don't already have cached data on screen
-        if (!hasCache) {
+    result.fold((failure) {
+      // Only show failure if we don't already have cached data on screen
+      if (!hasCache) {
+        if (failure.message == 'OFFLINE_FALLBACK') {
+          emit(ShowSessionsOfflineFallback());
+        } else {
           emit(ShowSessionsFailure(failure.message));
         }
-      },
-      (sessions) => emit(ShowSessionsSuccess(sessions)),
-    );
+      }
+    }, (sessions) => emit(ShowSessionsSuccess(sessions)));
   }
 }

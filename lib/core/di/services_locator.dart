@@ -32,8 +32,10 @@ import 'package:qrattendance/features/atendance/presentation/cubit/show_student_
 import 'package:qrattendance/features/atendance/domain/use_cases/get_session_attendances_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_offline_session_attendances_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_quiz_students_use_case.dart';
+import 'package:qrattendance/features/atendance/domain/use_cases/check_session_quizzes_use_case.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/session_students/session_students_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
+import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -84,6 +86,7 @@ class ServiceLocator {
     sl.registerLazySingleton<AttendanceRepository>(() => AttendanceRepositoryImpl(
       localDataSource: sl(),
       remoteDataSource: sl(),
+      connectivity: sl(),
     ));
 
     // UseCases
@@ -96,6 +99,7 @@ class ServiceLocator {
     sl.registerLazySingleton(() => GetSessionAttendancesUseCase(sl()));
     sl.registerLazySingleton(() => GetOfflineSessionAttendancesUseCase(sl()));
     sl.registerLazySingleton(() => GetQuizStudentsUseCase());
+    sl.registerLazySingleton(() => CheckSessionQuizzesUseCase(sl()));
 
     // Cubits (Factory)
     sl.registerFactory(() => ScanQrOflineCubit(sl(), sl()));
@@ -105,5 +109,6 @@ class ServiceLocator {
     sl.registerFactory(() => RecordOnlineAttendanceCubit(sl()));
     sl.registerFactory(() => SessionStudentsCubit(sl(), sl(), sl()));
     sl.registerFactory(() => QuizGradesCubit(sl()));
+    sl.registerFactory(() => CheckSessionQuizzesCubit(sl()));
   }
 }

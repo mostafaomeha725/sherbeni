@@ -9,6 +9,7 @@ class EndPoints {
   static const String mobileLogin = 'api/v1/mobile/login';
   static const String mobileSubjects = 'api/v1/mobile/subjects';
   static const String mobileSessions = 'api/v1/mobile/sessions';
+  static String getSessionQuizzes(String sessionId) => 'api/v1/mobile/sessions/$sessionId/quizzes';
   static const String onlineScan = 'api/v1/mobile/attendance/scan';
   static String getSessionAttendances(String sessionId) => 'api/v1/mobile/sessions/$sessionId/attendances';
   static const String recordAttendance = 'mobile/attendance';

@@ -9,6 +9,7 @@ abstract class AttendanceRemoteDataSource {
   Future<List<SessionModel>> getSessions();
   Future<List<SessionModel>> getClasses(String subjectId);
   Future<Map<String, dynamic>> getSessionAttendances(String sessionId, int page, int limit);
+  Future<Map<String, dynamic>> getSessionQuizzes(String sessionId);
 }
 
 class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
@@ -137,6 +138,24 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
           return response;
         } else {
           throw Exception(response['message'] ?? 'فشل في جلب الحضور');
+        }
+      },
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getSessionQuizzes(String sessionId) async {
+    final resultEither = await networkService.getData(
+      endPoint: EndPoints.getSessionQuizzes(sessionId),
+    );
+
+    return resultEither.fold(
+      (failure) => throw failure,
+      (response) {
+        if (response['status'] == true || response['statusCode'] == 200) {
+          return response;
+        } else {
+          throw Exception(response['message'] ?? 'فشل في جلب الكويزات');
         }
       },
     );

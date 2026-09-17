@@ -41,6 +41,13 @@ abstract class AttendanceRepository {
     required String uid,
   });
 
-  Future<Either<Failure, Map<String, dynamic>>> getSessionAttendances(String sessionId, int page, int limit);
-  Future<Either<Failure, List<SessionAttendanceEntity>>> getOfflineSessionAttendances(String sessionId);
+  Future<Either<Failure, Map<String, dynamic>>> getSessionAttendances(
+    String sessionId,
+    int page,
+    int limit,
+  );
+  Future<Either<Failure, List<SessionAttendanceEntity>>>
+  getOfflineSessionAttendances(String sessionId);
+  Future<Either<Failure, bool>> checkSessionHasQuizzes(String sessionId);
+  Future<Either<Failure, bool?>> getCachedSessionQuizzes(String sessionId);
 }

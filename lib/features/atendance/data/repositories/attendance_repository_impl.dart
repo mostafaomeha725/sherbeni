@@ -11,14 +11,23 @@ import '../model/session_attendance_model.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceLocalDataSource localDataSource;
   final AttendanceRemoteDataSource remoteDataSource;
+  final Connectivity connectivity;
 
   AttendanceRepositoryImpl({
     required this.localDataSource,
     required this.remoteDataSource,
+    required this.connectivity,
   });
+
+  Future<bool> _isOffline() async {
+    final connectivityResult = await connectivity.checkConnectivity();
+    return connectivityResult.contains(ConnectivityResult.none);
+  }
 
   @override
   Future<Either<Failure, String>> saveOfflineAttendance({
@@ -223,19 +232,26 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     required String subjectId,
   }) async {
     try {
+      final remoteClasses = await remoteDataSource.getClasses(subjectId);
+      final entities = remoteClasses.map((e) => e.toEntity()).toList();
+      await localDataSource.saveClasses(subjectId, remoteClasses);
+      return Right(entities);
+    } catch (remoteError) {
       try {
-        final remoteClasses = await remoteDataSource.getClasses(subjectId);
-
-        await localDataSource.saveClasses(subjectId, remoteClasses);
-
-        final entities = remoteClasses.map((e) => e.toEntity()).toList();
-        return Right(entities);
-      } catch (remoteError) {
         final localClasses = await localDataSource.getOfflineClasses(subjectId);
         if (localClasses.isNotEmpty) {
           final entities = localClasses.map((e) => e.toEntity()).toList();
           return Right(entities);
         } else {
+          final isOffline = await _isOffline();
+          if (isOffline) {
+            return const Left(
+              CacheFailure(
+                message:
+                    'لا توجد بيانات مخزنة لهذه المادة حاليًا، يرجى الاتصال بالإنترنت أولًا.',
+              ),
+            );
+          }
           if (remoteError is Failure) {
             return Left(remoteError);
           }
@@ -245,14 +261,14 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
             ),
           );
         }
+      } catch (e) {
+        if (e is Failure) {
+          return Left(e);
+        }
+        return Left(
+          ServerFailure(message: e.toString().replaceAll('Exception: ', '')),
+        );
       }
-    } catch (e) {
-      if (e is Failure) {
-        return Left(e);
-      }
-      return Left(
-        ServerFailure(message: e.toString().replaceAll('Exception: ', '')),
-      );
     }
   }
 
@@ -274,34 +290,38 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
     required String token,
   }) async {
     try {
-      // 1. Try fetching from remote API
+      final remoteSessions = await remoteDataSource.getSessions();
+      await localDataSource.saveSessions(remoteSessions);
+      final entities = remoteSessions.map((e) => e.toEntity()).toList();
+      return Right(entities);
+    } catch (remoteError) {
       try {
-        final remoteSessions = await remoteDataSource.getSessions();
-
-        // Save to local cache for offline use
-        await localDataSource.saveSessions(remoteSessions);
-
-        // Map to domain entities
-        final entities = remoteSessions.map((e) => e.toEntity()).toList();
-        return Right(entities);
-      } catch (remoteError) {
-        // 2. If remote fails (e.g. no internet), fallback to local cache
         final localSessions = await localDataSource.getOfflineSessions();
         if (localSessions.isNotEmpty) {
           final entities = localSessions.map((e) => e.toEntity()).toList();
           return Right(entities);
         } else {
-          // If no cache either, throw the remote error
-          throw remoteError;
+          final isOffline = await _isOffline();
+          if (isOffline) {
+            return const Left(CacheFailure(message: 'OFFLINE_FALLBACK'));
+          }
+          if (remoteError is Failure) {
+            return Left(remoteError);
+          }
+          return Left(
+            ServerFailure(
+              message: remoteError.toString().replaceAll('Exception: ', ''),
+            ),
+          );
         }
+      } catch (e) {
+        if (e is Failure) {
+          return Left(e);
+        }
+        return Left(
+          ServerFailure(message: e.toString().replaceAll('Exception: ', '')),
+        );
       }
-    } catch (e) {
-      if (e is Failure) {
-        return Left(e);
-      }
-      return Left(
-        ServerFailure(message: e.toString().replaceAll('Exception: ', '')),
-      );
     }
   }
 
@@ -468,6 +488,78 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       return Right(entities);
     } catch (e) {
       return Left(CacheFailure(message: "فشل في جلب الحضور المحلي"));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> checkSessionHasQuizzes(String sessionId) async {
+    try {
+      try {
+        final response = await remoteDataSource.getSessionQuizzes(sessionId);
+
+        bool hasQuizzes = false;
+        String jsonData = "[]";
+
+        if (response['data'] != null && response['data']['quizzes'] != null) {
+          final List quizzes = response['data']['quizzes'];
+          hasQuizzes = quizzes.isNotEmpty;
+          jsonData = jsonEncode(quizzes);
+        }
+
+        // Save to local cache for offline use
+        await localDataSource.saveSessionQuizzesCache(sessionId, jsonData);
+
+        return Right(hasQuizzes);
+      } catch (remoteError) {
+        // Fallback to local cache if offline or remote fails
+        final cachedJsonString = await localDataSource.getSessionQuizzesCache(
+          sessionId,
+        );
+
+        if (cachedJsonString != null) {
+          final List dynamicList = jsonDecode(cachedJsonString);
+          return Right(dynamicList.isNotEmpty);
+        } else {
+          final isOffline = await _isOffline();
+          if (isOffline) {
+            return const Right(false);
+          }
+          if (remoteError is Failure) {
+            return Left(remoteError);
+          }
+          return Left(
+            ServerFailure(
+              message: remoteError.toString().replaceAll('Exception: ', ''),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (e is Failure) {
+        return Left(e);
+      }
+      return Left(
+        ServerFailure(message: e.toString().replaceAll('Exception: ', '')),
+      );
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool?>> getCachedSessionQuizzes(
+    String sessionId,
+  ) async {
+    try {
+      final cachedJsonString = await localDataSource.getSessionQuizzesCache(
+        sessionId,
+      );
+
+      if (cachedJsonString != null) {
+        final List dynamicList = jsonDecode(cachedJsonString);
+        return Right(dynamicList.isNotEmpty);
+      }
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
     }
   }
 }

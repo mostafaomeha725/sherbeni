@@ -18,3 +18,5 @@ final class ShowSessionsFailure extends ShowSessionsState {
 
   ShowSessionsFailure(this.message);
 }
+
+final class ShowSessionsOfflineFallback extends ShowSessionsState {}
