@@ -69,6 +69,12 @@ class Validators {
     return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
   }
 
+  static bool isValidUuid(String value) {
+    return RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    ).hasMatch(value);
+  }
+
   static bool isValidInternationalPhoneNumber(String value) {
     return RegExp(r'^\+[1-9]\d{8,14}$').hasMatch(value);
   }

@@ -13,6 +13,7 @@ class SessionEntity extends Equatable {
   final int totalAttendance;
   final int attendedCount;
   final int lateCount;
+  final bool hasQuiz;
   final int? quizMaxGrade;
 
   // TODO: Remove this temporary default once the backend provides the real max grade
@@ -32,6 +33,7 @@ class SessionEntity extends Equatable {
     required this.totalAttendance,
     required this.attendedCount,
     required this.lateCount,
+    required this.hasQuiz,
     this.quizMaxGrade,
   });
 
@@ -49,6 +51,7 @@ class SessionEntity extends Equatable {
     totalAttendance,
     attendedCount,
     lateCount,
+    hasQuiz,
     quizMaxGrade,
   ];
 }

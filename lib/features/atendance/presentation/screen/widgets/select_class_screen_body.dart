@@ -8,7 +8,7 @@ import 'package:qrattendance/core/utils/easy_loading.dart';
 import 'package:qrattendance/core/widgets/custom_button.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_classes/show_classes_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
+
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_card.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_header.dart';
 import 'package:qrattendance/core/widgets/empty_state_widget.dart';
@@ -44,28 +44,6 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
             }
           },
         ),
-        BlocListener<CheckSessionQuizzesCubit, CheckSessionQuizzesState>(
-          listener: (context, state) {
-            if (state is CheckSessionQuizzesLoading) {
-              showLoading();
-            } else if (state is CheckSessionQuizzesFailure) {
-              showError(state.message);
-            } else if (state is CheckSessionQuizzesSuccess) {
-              hideLoading();
-              if (state.quizzes.isNotEmpty) {
-                SelectClassActionSheet.show(
-                  context,
-                  state.session,
-                  state.quizzes,
-                );
-              } else {
-                GoRouter.of(
-                  context,
-                ).push(Routes.scanQrScreen, extra: state.session);
-              }
-            }
-          },
-        ),
       ],
       child: BlocBuilder<ShowClassesCubit, ShowClassesState>(
         builder: (context, state) {
@@ -97,9 +75,17 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
                           return SelectClassCard(
                             session: session,
                             onTap: () {
-                              context
-                                  .read<CheckSessionQuizzesCubit>()
-                                  .checkQuizzes(session);
+                              if (session.hasQuiz) {
+                                SelectClassActionSheet.show(
+                                  context,
+                                  session,
+                                  [],
+                                );
+                              } else {
+                                GoRouter.of(
+                                  context,
+                                ).push(Routes.scanQrScreen, extra: session);
+                              }
                             },
                           );
                         },

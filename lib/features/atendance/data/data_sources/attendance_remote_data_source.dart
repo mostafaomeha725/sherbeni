@@ -14,16 +14,22 @@ abstract class AttendanceRemoteDataSource {
     int limit,
   );
   Future<Map<String, dynamic>> getSessionQuizzes(String sessionId);
-  Future<Map<String, dynamic>> getQuizStudents(
+  Future<Map<String, dynamic>> getSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
-    int page,
-    int limit,
     String search,
     String gradingStatus,
   );
 
-  Future<Map<String, dynamic>> updateQuizGrade(String quizAttemptId, num grade);
+  Future<Map<String, dynamic>> addOrUpdateQuizGrade(
+    String sessionId,
+    String studentId,
+    num grade,
+  );
+
+  Future<Map<String, dynamic>> syncBulkQuizGrades(
+    String sessionId,
+    List<Map<String, dynamic>> grades,
+  );
 }
 
 class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
@@ -161,21 +167,16 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> getQuizStudents(
+  Future<Map<String, dynamic>> getSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
-    int page,
-    int limit,
     String search,
     String gradingStatus,
   ) async {
     final resultEither = await networkService.getData(
-      endPoint: EndPoints.getQuizStudents(sessionId, quizTemplateId),
+      endPoint: EndPoints.getSessionQuizGrades(sessionId),
       queryParameters: {
-        'page': page,
-        'limit': limit,
         if (search.isNotEmpty) 'search': search,
-        if (gradingStatus.isNotEmpty) 'grading_status': gradingStatus,
+        if (gradingStatus.isNotEmpty) 'status': gradingStatus,
       },
     );
 
@@ -183,26 +184,50 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
       if (response['status'] == true || response['statusCode'] == 200) {
         return response;
       } else {
-        throw Exception(response['message'] ?? 'فشل في جلب طلاب الكويز');
+        throw Exception(response['message'] ?? 'فشل في جلب درجات الكويز');
       }
     });
   }
 
   @override
-  Future<Map<String, dynamic>> updateQuizGrade(
-    String quizAttemptId,
+  Future<Map<String, dynamic>> addOrUpdateQuizGrade(
+    String sessionId,
+    String studentId,
     num grade,
   ) async {
-    final resultEither = await networkService.patchData(
-      endPoint: EndPoints.updateQuizGrade(quizAttemptId),
-      data: {'grade': grade},
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.addOrUpdateQuizGrade(sessionId),
+      data: {'student_id': studentId, 'grade': grade},
     );
 
     return resultEither.fold((failure) => throw failure, (response) {
-      if (response['status'] == true || response['statusCode'] == 200) {
+      if (response['status'] == true ||
+          response['statusCode'] == 200 ||
+          response['statusCode'] == 201) {
         return response;
       } else {
         throw Exception(response['message'] ?? 'فشل تحديث الدرجة');
+      }
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> syncBulkQuizGrades(
+    String sessionId,
+    List<Map<String, dynamic>> grades,
+  ) async {
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.syncBulkQuizGrades(sessionId),
+      data: {'grades': grades},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true ||
+          response['statusCode'] == 200 ||
+          response['statusCode'] == 201) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل مزامنة الدرجات');
       }
     });
   }

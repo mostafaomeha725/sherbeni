@@ -55,11 +55,9 @@ class QuizGradesCard extends StatelessWidget {
               // Status Indicator Line
               Container(
                 width: 5.w,
-                color: student.offlineStatus == 'unknown'
-                    ? AppLightColors.primary
-                    : student.offlineStatus == 'present'
-                    ? const Color(0xFF15803D) // Present (Green)
-                    : const Color(0xFFB91C1C), // Absent (Red)
+                color: const Color(
+                  0xFF15803D,
+                ), // Always Present (Green) in Quiz Grades
               ),
               Expanded(
                 child: Padding(
@@ -86,27 +84,17 @@ class QuizGradesCard extends StatelessWidget {
                               vertical: 4.h,
                             ),
                             decoration: BoxDecoration(
-                              color: student.offlineStatus == 'unknown'
-                                  ? const Color(0xFFF1F5F9) // Light Gray
-                                  : student.offlineStatus == 'present'
-                                  ? const Color(0xFFDCFCE7) // Light Green
-                                  : const Color(0xFFFEE2E2), // Light Red
+                              color: const Color(
+                                0xFFDCFCE7,
+                              ), // Always Light Green
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: AppText(
-                              student.offlineStatus == 'unknown'
-                                  ? 'غير متوفر'
-                                  : student.offlineStatus == 'present'
-                                  ? 'حاضر'
-                                  : 'غائب',
+                              'Present', // Always Present
                               style: TextStyle(
                                 fontSize: 11.sp,
                                 fontWeight: FontWeight.w700,
-                                color: student.offlineStatus == 'unknown'
-                                    ? const Color(0xFF64748B) // Slate 500
-                                    : student.offlineStatus == 'present'
-                                    ? const Color(0xFF15803D)
-                                    : const Color(0xFFB91C1C),
+                                color: const Color(0xFF15803D), // Always Green
                               ),
                             ),
                           ),

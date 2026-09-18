@@ -53,24 +53,19 @@ abstract class AttendanceRepository {
     String sessionId,
   );
 
-  Future<Either<Failure, Map<String, dynamic>>> getQuizStudents(
+  Future<Either<Failure, Map<String, dynamic>>> getSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
-    int page,
-    int limit,
     String search,
     String gradingStatus,
   );
 
-  Future<Either<Failure, Map<String, dynamic>?>> getCachedQuizStudents(
+  Future<Either<Failure, Map<String, dynamic>?>> getCachedSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
   );
 
-  Future<Either<Failure, Map<String, dynamic>>> updateQuizGrade(
-    String quizAttemptId,
-    num grade,
+  Future<Either<Failure, Map<String, dynamic>>> addOrUpdateQuizGrade(
     String sessionId,
-    String quizTemplateId,
+    String studentId,
+    num grade,
   );
 }

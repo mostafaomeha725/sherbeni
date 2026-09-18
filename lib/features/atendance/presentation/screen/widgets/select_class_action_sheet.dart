@@ -131,34 +131,52 @@ class SelectClassActionSheet extends StatelessWidget {
                   },
                 ),
                 SizedBox(height: 16.h),
-                ...quizzes.map((quiz) {
-                  final quizName = quiz['name'] ?? 'Quiz';
-                  final quizTemplateId =
-                      quiz['quiz_template_id']?.toString() ?? '';
-                  return Padding(
+                if (quizzes.isNotEmpty)
+                  ...quizzes.map((quiz) {
+                    final quizName = quiz['name'] ?? 'Quiz';
+                    final quizTemplateId =
+                        quiz['quiz_template_id']?.toString() ?? '';
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: 16.h),
+                      child: _buildActionCard(
+                        context: context,
+                        title: 'Quiz: $quizName',
+                        subtitle: 'Enter or update student grades',
+                        icon: Icons.grading_rounded,
+                        iconColor: const Color(0xFF10B981),
+                        bgColor: const Color(0xFFECFDF5),
+                        onTap: () {
+                          GoRouter.of(context).pop();
+                          GoRouter.of(context).push(
+                            Routes.quizGradesScreen,
+                            extra: {
+                              'session': session,
+                              'quizTemplateId': quizTemplateId,
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  })
+                else
+                  Padding(
                     padding: EdgeInsets.only(bottom: 16.h),
                     child: _buildActionCard(
                       context: context,
-                      title: 'Quiz: $quizName',
+                      title: 'Quiz',
                       subtitle: 'Enter or update student grades',
                       icon: Icons.grading_rounded,
-                      iconColor: const Color(
-                        0xFF10B981,
-                      ), // Green theme for grades
+                      iconColor: const Color(0xFF10B981),
                       bgColor: const Color(0xFFECFDF5),
                       onTap: () {
                         GoRouter.of(context).pop();
                         GoRouter.of(context).push(
                           Routes.quizGradesScreen,
-                          extra: {
-                            'session': session,
-                            'quizTemplateId': quizTemplateId,
-                          },
+                          extra: {'session': session, 'quizTemplateId': ''},
                         );
                       },
                     ),
-                  );
-                }),
+                  ),
                 SizedBox(height: 8.h),
               ],
             ),

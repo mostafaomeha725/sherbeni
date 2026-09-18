@@ -4,8 +4,9 @@ part 'pending_quiz_grade_model.g.dart';
 
 @HiveType(typeId: 3)
 class PendingQuizGradeModel extends HiveObject {
+  // Obsolete but kept for Hive backward compatibility
   @HiveField(0)
-  final String quizAttemptId;
+  final String? quizAttemptId;
 
   @HiveField(1)
   final String studentId;
@@ -13,8 +14,9 @@ class PendingQuizGradeModel extends HiveObject {
   @HiveField(2)
   final String sessionId;
 
+  // Obsolete but kept for Hive backward compatibility
   @HiveField(3)
-  final String quizTemplateId;
+  final String? quizTemplateId;
 
   @HiveField(4)
   final num grade;
@@ -23,11 +25,13 @@ class PendingQuizGradeModel extends HiveObject {
   String? error;
 
   PendingQuizGradeModel({
-    required this.quizAttemptId,
+    this.quizAttemptId,
     required this.studentId,
     required this.sessionId,
-    required this.quizTemplateId,
+    this.quizTemplateId,
     required this.grade,
     this.error,
   });
+
+  String get pendingKey => '${sessionId}_$studentId';
 }

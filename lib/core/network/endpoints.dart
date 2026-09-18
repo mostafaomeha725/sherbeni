@@ -11,10 +11,12 @@ class EndPoints {
   static const String mobileSessions = 'api/v1/mobile/sessions';
   static String getSessionQuizzes(String sessionId) =>
       'api/v1/mobile/sessions/$sessionId/quizzes';
-  static String getQuizStudents(String sessionId, String quizTemplateId) =>
-      'api/v1/mobile/sessions/$sessionId/quizzes/$quizTemplateId/students';
-  static String updateQuizGrade(String quizAttemptId) =>
-      'api/v1/mobile/quiz-attempts/$quizAttemptId/grade';
+  static String getSessionQuizGrades(String sessionId) =>
+      'api/v1/mobile/sessions/$sessionId/quiz-grades';
+  static String addOrUpdateQuizGrade(String sessionId) =>
+      'api/v1/mobile/sessions/$sessionId/quiz-grades';
+  static String syncBulkQuizGrades(String sessionId) =>
+      'api/v1/mobile/sessions/$sessionId/quiz-grades/bulk';
   static const String onlineScan = 'api/v1/mobile/attendance/scan';
   static String getSessionAttendances(String sessionId) =>
       'api/v1/mobile/sessions/$sessionId/attendances';

@@ -49,7 +49,7 @@ class QuizGradesCardDetails extends StatelessWidget {
           ],
         ),
         SizedBox(height: 4.h),
-        if (student.phone != null && student.phone!.isNotEmpty)
+        if (student.phoneNumber != null && student.phoneNumber!.isNotEmpty)
           Row(
             children: [
               Icon(
@@ -59,7 +59,7 @@ class QuizGradesCardDetails extends StatelessWidget {
               ),
               SizedBox(width: 4.w),
               AppText(
-                student.phone!,
+                student.phoneNumber!,
                 style: TextStyle(
                   fontSize: 13.sp,
                   color: const Color(0xFF64748B),

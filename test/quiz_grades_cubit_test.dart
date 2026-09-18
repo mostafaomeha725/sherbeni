@@ -17,21 +17,18 @@ class FakeAttendanceRepository implements AttendanceRepository {
 }
 
 class FakeGetQuizStudentsUseCase extends GetQuizStudentsUseCase {
-  Either<Failure, Map<String, dynamic>> Function(int page)? mockResponse;
+  Either<Failure, Map<String, dynamic>>? mockResponse;
 
   FakeGetQuizStudentsUseCase() : super(FakeAttendanceRepository());
 
   @override
   Future<Either<Failure, Map<String, dynamic>>> call(
-    String sessionId,
-    String quizTemplateId, {
-    int page = 1,
-    int limit = 10,
+    String sessionId, {
     String search = '',
     String gradingStatus = 'all',
   }) async {
     if (mockResponse != null) {
-      return mockResponse!(page);
+      return mockResponse!;
     }
     return Left(ServerFailure(message: 'Unmocked response'));
   }
@@ -43,10 +40,7 @@ class FakeGetCachedQuizStudentsUseCase extends GetCachedQuizStudentsUseCase {
   FakeGetCachedQuizStudentsUseCase() : super(FakeAttendanceRepository());
 
   @override
-  Future<Either<Failure, Map<String, dynamic>?>> call(
-    String sessionId,
-    String quizTemplateId,
-  ) async {
+  Future<Either<Failure, Map<String, dynamic>?>> call(String sessionId) async {
     if (mockResponse != null) {
       return mockResponse!;
     }
@@ -61,10 +55,9 @@ class FakeUpdateQuizGradeUseCase extends UpdateQuizGradeUseCase {
 
   @override
   Future<Either<Failure, Map<String, dynamic>>> call(
-    String quizAttemptId,
-    num grade,
     String sessionId,
-    String quizTemplateId,
+    String studentId,
+    num grade,
   ) async {
     if (mockResponse != null) {
       return mockResponse!;
@@ -106,20 +99,17 @@ void main() {
     cubit.close();
   });
 
-  Map<String, dynamic> createMockStudents(
-    List<String> names, {
-    bool hasNextPage = false,
-  }) {
+  Map<String, dynamic> createMockStudents(List<String> names) {
     return {
       'data': {
-        'students': names
+        'grades': names
             .map(
               (n) => {
                 'student_id': 'id_$n',
                 'name': n,
                 'student_code': 'code_$n',
                 'email': '$n@test.com',
-                'phone': '123',
+                'phone_number': '123',
                 'picture': null,
                 'offline_status': 'online',
                 'quiz_attempt_id': 'att_$n',
@@ -131,32 +121,22 @@ void main() {
             )
             .toList(),
       },
-      'pagination': {
-        'hasNextPage': hasNextPage,
-        'page': 1,
-        'limit': 10,
-        'totalPages': hasNextPage ? 2 : 1,
-        'totalItems': hasNextPage ? 20 : names.length,
-      },
     };
   }
 
   test('TEST 1 - Offline + Cache', () async {
     // Arrange
     fakeGetCachedQuizStudentsUseCase.mockResponse = Right(
-      createMockStudents(['A', 'B', 'C'], hasNextPage: true),
+      createMockStudents(['A', 'B', 'C']),
     );
 
     // Simulate API network failure due to offline
-    fakeGetQuizStudentsUseCase.mockResponse = (page) => Left(
-      CacheFailure(
-        message:
-            'عذراً، لا تتوفر بيانات محفوظة محلياً لهذا الاختبار. يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.',
-      ),
+    fakeGetQuizStudentsUseCase.mockResponse = Left(
+      CacheFailure(message: 'عذراً، لا تتوفر بيانات محفوظة محلياً.'),
     );
 
     // Act
-    await cubit.fetchStudents('session_1', 'template_1');
+    await cubit.fetchStudents('session_1');
 
     // Assert
     expect(cubit.state, isA<QuizGradesLoaded>());
@@ -168,17 +148,12 @@ void main() {
     expect(state.pagination, isNull);
     // Students must be A, B, C
     expect(state.students.map((e) => e.name).toList(), ['A', 'B', 'C']);
-
-    // Attempt to fetch next page (should be blocked because pagination == null)
-    cubit.fetchNextPage();
-    // Verify no new fetch happened
-    expect((cubit.state as QuizGradesLoaded).isFetchingMore, false);
   });
 
   test('TEST 2 - Offline + No Cache', () async {
     // Arrange
     fakeGetCachedQuizStudentsUseCase.mockResponse = const Right(null);
-    fakeGetQuizStudentsUseCase.mockResponse = (page) => Left(
+    fakeGetQuizStudentsUseCase.mockResponse = Left(
       CacheFailure(
         message:
             'لا توجد بيانات مخزنة لهذا الكويز حاليًا، يرجى الاتصال بالإنترنت أولًا.',
@@ -186,7 +161,7 @@ void main() {
     );
 
     // Act
-    await cubit.fetchStudents('session_1', 'template_1');
+    await cubit.fetchStudents('session_1');
 
     // Assert
     expect(cubit.state, isA<QuizGradesError>());
@@ -198,124 +173,37 @@ void main() {
     );
   });
 
-  test('TEST 3 - Online Pagination Success', () async {
+  test('TEST 3 - Online Success', () async {
     // Arrange
     fakeGetCachedQuizStudentsUseCase.mockResponse = const Right(null);
-    fakeGetQuizStudentsUseCase.mockResponse = (page) {
-      if (page == 1) {
-        return Right(createMockStudents(['A', 'B', 'C'], hasNextPage: true));
-      } else if (page == 2) {
-        return Right(createMockStudents(['D', 'E', 'F'], hasNextPage: false));
-      }
-      return Left(ServerFailure(message: 'Error'));
-    };
+    fakeGetQuizStudentsUseCase.mockResponse = Right(
+      createMockStudents(['A', 'B', 'C']),
+    );
 
     // Act
-    await cubit.fetchStudents('session_1', 'template_1');
+    await cubit.fetchStudents('session_1');
 
-    // Assert Page 1
+    // Assert
     var state = cubit.state as QuizGradesLoaded;
     expect(state.students.map((e) => e.name).toList(), ['A', 'B', 'C']);
     expect(state.isOffline, false);
-    expect(state.pagination, isNotNull);
-    expect(state.pagination!.hasNextPage, true);
-    expect(state.isFetchingMore, false);
-
-    // Act Page 2
-    cubit.fetchNextPage();
-
-    // Check loading state immediately
-    state = cubit.state as QuizGradesLoaded;
-    expect(state.isFetchingMore, true);
-
-    // Wait for event loop to finish async call
-    await Future.delayed(Duration.zero);
-
-    // Assert Page 2 Appended
-    state = cubit.state as QuizGradesLoaded;
-    expect(state.students.map((e) => e.name).toList(), [
-      'A',
-      'B',
-      'C',
-      'D',
-      'E',
-      'F',
-    ]);
-    expect(state.isFetchingMore, false);
-    expect(state.pagination!.hasNextPage, false);
-  });
-
-  test('TEST 4 - Page 2 Network Failure + Retry', () async {
-    // Arrange
-    fakeGetCachedQuizStudentsUseCase.mockResponse = const Right(null);
-
-    int page2Attempts = 0;
-    fakeGetQuizStudentsUseCase.mockResponse = (page) {
-      if (page == 1) {
-        return Right(createMockStudents(['A', 'B', 'C'], hasNextPage: true));
-      } else if (page == 2) {
-        page2Attempts++;
-        if (page2Attempts == 1) {
-          // First attempt fails
-          return Left(ServerFailure(message: 'Network error'));
-        } else {
-          // Second attempt succeeds
-          return Right(createMockStudents(['D', 'E', 'F'], hasNextPage: false));
-        }
-      }
-      return Left(ServerFailure(message: 'Error'));
-    };
-
-    // Act: Load Page 1
-    await cubit.fetchStudents('session_1', 'template_1');
-    var state = cubit.state as QuizGradesLoaded;
-    expect(state.students.map((e) => e.name).toList(), ['A', 'B', 'C']);
-
-    // Act: Request Page 2 (Fails)
-    cubit.fetchNextPage();
-    await Future.delayed(Duration.zero);
-
-    // Assert: Existing students remain EXACTLY A B C, not duplicated
-    state = cubit.state as QuizGradesLoaded;
-    expect(state.students.map((e) => e.name).toList(), ['A', 'B', 'C']);
-    // isFetchingMore becomes false
-    expect(state.isFetchingMore, false);
-    // hasNextPage remains true so we can retry
-    expect(state.pagination!.hasNextPage, true);
-
-    // Act: Retry Page 2 (Succeeds)
-    cubit.fetchNextPage();
-    await Future.delayed(Duration.zero);
-
-    // Assert: Retry was successful, D E F appended exactly once
-    state = cubit.state as QuizGradesLoaded;
-    expect(state.students.map((e) => e.name).toList(), [
-      'A',
-      'B',
-      'C',
-      'D',
-      'E',
-      'F',
-    ]);
-    expect(page2Attempts, 2); // Proves page 2 was retried
+    expect(state.pagination, isNull); // API V2 has no pagination
   });
 
   test('TEST 5 - Decimal Grade Updates (Online)', () async {
     // Arrange
     fakeGetCachedQuizStudentsUseCase.mockResponse = const Right(null);
-    fakeGetQuizStudentsUseCase.mockResponse = (page) {
-      final mockData = createMockStudents(['A']);
-      mockData['data']['students'][0]['grade'] = 0.5; // Starts with 0.5
-      return Right(mockData);
-    };
+    final mockData = createMockStudents(['A']);
+    mockData['data']['grades'][0]['grade'] = 0.5; // Starts with 0.5
+    fakeGetQuizStudentsUseCase.mockResponse = Right(mockData);
 
-    // Act: Load Page 1
-    await cubit.fetchStudents('session_1', 'template_1');
+    // Act: Load Data
+    await cubit.fetchStudents('session_1');
     var state = cubit.state as QuizGradesLoaded;
     expect(state.students[0].grade, 0.5);
 
     // Act: Update Grade to 1.55
-    await cubit.updateGrade(state.students[0].quizAttemptId!, 1.55);
+    await cubit.updateGrade(state.students[0].studentId, 1.55);
 
     // Check that state updated
     state = cubit.state as QuizGradesLoaded;

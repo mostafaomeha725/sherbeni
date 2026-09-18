@@ -131,7 +131,9 @@ class NetworkService {
         return Left(Failure(msg ?? 'Error ${response.statusCode}'));
       }
     } on SocketException {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -176,7 +178,9 @@ class NetworkService {
         return Left(Failure(response.data['message'].toString()));
       }
     } on SocketException {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -200,7 +204,9 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -256,7 +262,9 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -295,7 +303,8 @@ class NetworkService {
           fallback: e.message ?? 'Bad response',
         );
         return Left(message);
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
         return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
       } else if (e.type == DioExceptionType.receiveTimeout) {
@@ -333,7 +342,8 @@ class NetworkService {
           fallback: e.message ?? 'Bad response',
         );
         return Left(message);
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
         return const Left("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة");
       } else if (e.type == DioExceptionType.receiveTimeout) {
@@ -364,7 +374,9 @@ class NetworkService {
         return Left(Failure(message));
       }
     } on SocketException {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
@@ -375,9 +387,12 @@ class NetworkService {
         );
         return Left(Failure(message));
         // return Left(_l)(e.message);
-      } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.connectionError) {
         // safePrint('check your connection');
-        return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+        return const Left(
+          Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        );
       } else if (e.type == DioExceptionType.receiveTimeout) {
         return const Left(Failure("تعذر الاتصال بالخادم"));
       } else {
@@ -428,8 +443,11 @@ class NetworkService {
         }
       }
       return Left(Failure(e.message ?? 'Something went wrong'));
-    } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
-      return const Left(Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"));
+    } else if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.connectionError) {
+      return const Left(
+        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+      );
     } else if (e.type == DioExceptionType.receiveTimeout) {
       return const Left(Failure("تعذر الاتصال بالخادم"));
     } else {

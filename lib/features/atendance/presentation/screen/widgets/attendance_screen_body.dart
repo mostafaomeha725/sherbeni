@@ -52,6 +52,8 @@ class _AttendanceScreenBodyState extends State<AttendanceScreenBody> {
               totalAttendance: 0,
               attendedCount: 0,
               lateCount: 0,
+              hasQuiz:
+                  false, // Offline fallback session typically has no quiz grading
             ),
           );
         } else {

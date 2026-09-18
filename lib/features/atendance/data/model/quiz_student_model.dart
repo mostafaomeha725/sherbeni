@@ -6,30 +6,35 @@ class QuizStudentModel extends QuizStudentEntity {
     required super.name,
     required super.studentCode,
     required super.email,
-    super.phone,
+    super.phoneNumber,
     super.picture,
     required super.offlineStatus,
     super.quizAttemptId,
     required super.gradingStatus,
     super.grade,
-    required super.maxScore,
-    required super.percentage,
+    super.maxScore,
+    super.percentage,
+    super.approvedBy,
+    super.approvedAt,
   });
 
   factory QuizStudentModel.fromJson(Map<String, dynamic> json) {
     return QuizStudentModel(
       studentId: json['student_id'] ?? '',
       name: json['name'] ?? '',
-      studentCode: json['studentCode']?.toString() ?? '',
+      studentCode:
+          (json['student_code'] ?? json['studentCode'])?.toString() ?? '',
       email: json['email'] ?? '',
-      phone: json['phone']?.toString(),
+      phoneNumber: (json['phone_number'] ?? json['phone'])?.toString(),
       picture: json['picture'],
       offlineStatus: json['offline_status'] ?? 'unknown',
       quizAttemptId: json['quiz_attempt_id'],
       gradingStatus: json['grading_status'] ?? 'unknown',
       grade: json['grade'] as num?,
-      maxScore: json['maxScore'] as num? ?? 0,
-      percentage: json['percentage'] as num? ?? 0,
+      maxScore: json['maxScore'] as num?,
+      percentage: json['percentage'] as num?,
+      approvedBy: json['approved_by'] as Map<String, dynamic>?,
+      approvedAt: json['approved_at']?.toString(),
     );
   }
 
@@ -37,9 +42,9 @@ class QuizStudentModel extends QuizStudentEntity {
     return {
       'student_id': studentId,
       'name': name,
-      'studentCode': studentCode,
+      'student_code': studentCode,
       'email': email,
-      'phone': phone,
+      'phone_number': phoneNumber,
       'picture': picture,
       'offline_status': offlineStatus,
       'quiz_attempt_id': quizAttemptId,
@@ -47,6 +52,8 @@ class QuizStudentModel extends QuizStudentEntity {
       'grade': grade,
       'maxScore': maxScore,
       'percentage': percentage,
+      'approved_by': approvedBy,
+      'approved_at': approvedAt,
     };
   }
 }

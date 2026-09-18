@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import '../../../../core/utils/validators.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceLocalDataSource localDataSource;
@@ -145,80 +146,129 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         }
       }
 
-      // Sync Pending Quiz Grades
+      // Sync Pending Quiz Grades (Bulk API V2)
       final pendingGrades = await localDataSource.getPendingQuizGrades();
+
+      // Group by session
+      final Map<String, List<PendingQuizGradeModel>> sessionGroups = {};
       for (final pending in pendingGrades) {
-        // Skip permanently failed requests to avoid infinite retries
+        // Skip permanently failed requests
         if (pending.error != null) continue;
+        sessionGroups.putIfAbsent(pending.sessionId, () => []).add(pending);
+      }
+
+      for (final sessionId in sessionGroups.keys) {
+        final sessionPendingList = sessionGroups[sessionId]!;
+        final List<Map<String, dynamic>> payloadGrades = [];
+        final List<PendingQuizGradeModel> validPendingForSync = [];
+
+        for (final pending in sessionPendingList) {
+          // UUID Validation
+          if (!Validators.isValidUuid(pending.studentId)) {
+            await localDataSource.markPendingQuizGradeAsFailed(
+              pending.pendingKey,
+              "Invalid student_id UUID format",
+            );
+            continue;
+          }
+
+          payloadGrades.add({
+            "student_id": pending.studentId,
+            "grade": pending.grade,
+          });
+          validPendingForSync.add(pending);
+        }
+
+        if (payloadGrades.isEmpty) continue;
 
         try {
-          final result = await remoteDataSource.updateQuizGrade(
-            pending.quizAttemptId,
-            pending.grade,
+          final result = await remoteDataSource.syncBulkQuizGrades(
+            sessionId,
+            payloadGrades,
           );
 
-          // If success, verify that the user did not update the offline grade while the API was running
-          final currentPending = await localDataSource.getPendingQuizGrade(
-            pending.quizAttemptId,
+          // Success: verify race conditions and update cache
+          final cacheKey = 'quiz_grades_$sessionId';
+          final cachedJsonString = await localDataSource.getQuizStudentsCache(
+            cacheKey,
           );
+          Map<String, dynamic>? dynamicData;
+          List? cachedGradesList;
 
-          if (currentPending == null) {
-            // Already handled somehow, skip cache update and delete
-          } else if (currentPending.grade == pending.grade) {
-            // The grade hasn't changed. Update local Quiz Students Cache (percentages etc)
-            if (result['data'] != null) {
-              final cacheKey =
-                  'quiz_students_${pending.sessionId}_${pending.quizTemplateId}';
-              final cachedJsonString = await localDataSource
-                  .getQuizStudentsCache(cacheKey);
-              if (cachedJsonString != null) {
-                final Map<String, dynamic> dynamicData = jsonDecode(
-                  cachedJsonString,
+          if (cachedJsonString != null) {
+            dynamicData = jsonDecode(cachedJsonString);
+            if (dynamicData != null &&
+                dynamicData['data'] != null &&
+                dynamicData['data']['grades'] != null) {
+              cachedGradesList = dynamicData['data']['grades'];
+            }
+          }
+
+          final responseGrades = result['data']?['grades'] as List? ?? [];
+          bool cacheUpdated = false;
+
+          for (final pending in validPendingForSync) {
+            final currentPending = await localDataSource.getPendingQuizGrade(
+              pending.pendingKey,
+            );
+
+            if (currentPending == null) continue;
+
+            if (currentPending.grade == pending.grade) {
+              // Grade hasn't changed offline during sync. Update cache from server.
+              if (cachedGradesList != null) {
+                final studentIndex = cachedGradesList.indexWhere(
+                  (s) => s['student_id'] == pending.studentId,
                 );
-                if (dynamicData['data'] != null &&
-                    dynamicData['data']['students'] != null) {
-                  final List studentsList = dynamicData['data']['students'];
-                  final studentIndex = studentsList.indexWhere(
-                    (s) => s['quiz_attempt_id'] == pending.quizAttemptId,
-                  );
-                  if (studentIndex != -1) {
-                    final updatedStudentData = result['data'];
-                    studentsList[studentIndex]['grade'] =
-                        updatedStudentData['grade'];
-                    studentsList[studentIndex]['maxScore'] =
-                        updatedStudentData['maxScore'];
-                    studentsList[studentIndex]['percentage'] =
-                        updatedStudentData['percentage'];
-                    studentsList[studentIndex]['grading_status'] =
-                        updatedStudentData['grading_status'];
-                    if (updatedStudentData['passed'] != null) {
-                      studentsList[studentIndex]['passed'] =
-                          updatedStudentData['passed'];
-                    }
-                    await localDataSource.saveQuizStudentsCache(
-                      cacheKey,
-                      jsonEncode(dynamicData),
-                    );
+                Map<String, dynamic>? serverStudentData;
+                for (final s in responseGrades) {
+                  if (s['student_id'] == pending.studentId) {
+                    serverStudentData = s as Map<String, dynamic>?;
+                    break;
                   }
                 }
-              }
-            }
 
-            // Delete only this specific successful pending grade
-            await localDataSource.deletePendingQuizGrade(pending.quizAttemptId);
-          } else {
-            // User changed the grade while the sync was running.
-            // DO NOT delete pending, DO NOT overwrite cache with old server response.
-            // keep latest local grade pending for next sync.
+                if (studentIndex != -1 && serverStudentData != null) {
+                  cachedGradesList[studentIndex]['grade'] =
+                      serverStudentData['grade'];
+                  if (serverStudentData['approved_by'] != null) {
+                    cachedGradesList[studentIndex]['approved_by'] =
+                        serverStudentData['approved_by'];
+                  }
+                  if (serverStudentData['approved_at'] != null) {
+                    cachedGradesList[studentIndex]['approved_at'] =
+                        serverStudentData['approved_at'];
+                  }
+                  cacheUpdated = true;
+                }
+              }
+
+              // Delete ONLY this specific successful pending grade
+              await localDataSource.deletePendingQuizGrade(pending.pendingKey);
+            } else {
+              // User changed the grade while the sync was running. Keep Y pending.
+            }
+          }
+
+          if (cacheUpdated && dynamicData != null) {
+            await localDataSource.saveQuizStudentsCache(
+              cacheKey,
+              jsonEncode(dynamicData),
+            );
           }
         } catch (e) {
           final errorMessage = e is Failure ? e.message : e.toString();
-          if (errorMessage.contains('must be less than or equal')) {
-            // 400 Backend Validation error -> mark as failed permanently
-            await localDataSource.markPendingQuizGradeAsFailed(
-              pending.quizAttemptId,
-              errorMessage,
-            );
+          // Check for 400 validation error (e.g. backend rejects specific payload entirely)
+          // If the backend rejects it completely for validation, mark all as failed to unblock.
+          if (errorMessage.contains('must be a UUID') ||
+              errorMessage.contains('Validation') ||
+              errorMessage.contains('400')) {
+            for (final pending in validPendingForSync) {
+              await localDataSource.markPendingQuizGradeAsFailed(
+                pending.pendingKey,
+                errorMessage,
+              );
+            }
           }
           // On other errors (e.g., Network Failure), keep pending (do nothing)
         }
@@ -642,58 +692,21 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> getQuizStudents(
+  Future<Either<Failure, Map<String, dynamic>>> getSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
-    int page,
-    int limit,
     String search,
     String gradingStatus,
   ) async {
     try {
-      final isDefaultQuery =
-          page == 1 && search.isEmpty && gradingStatus == 'all';
-      final cacheKey = 'quiz_students_${sessionId}_${quizTemplateId}';
+      final isDefaultQuery = search.isEmpty && gradingStatus == 'all';
+      final cacheKey = 'quiz_grades_$sessionId';
 
       try {
-        final response = await remoteDataSource.getQuizStudents(
+        final response = await remoteDataSource.getSessionQuizGrades(
           sessionId,
-          quizTemplateId,
-          page,
-          limit,
           search,
           gradingStatus,
         );
-
-        // --- FIX START ---
-        // Apply pending offline grades to the response before saving/returning
-        final pendingGrades = await localDataSource.getPendingQuizGrades();
-        final relevantPendings = pendingGrades
-            .where(
-              (p) =>
-                  p.sessionId == sessionId &&
-                  p.quizTemplateId == quizTemplateId,
-            )
-            .toList();
-
-        if (relevantPendings.isNotEmpty &&
-            response['data'] != null &&
-            response['data']['students'] != null) {
-          final List studentsList = response['data']['students'];
-          for (var pending in relevantPendings) {
-            final index = studentsList.indexWhere(
-              (s) => s['quiz_attempt_id'] == pending.quizAttemptId,
-            );
-            if (index != -1) {
-              studentsList[index]['grade'] = pending.grade;
-              final maxScore = studentsList[index]['maxScore'] ?? 2;
-              studentsList[index]['percentage'] =
-                  (pending.grade / maxScore) * 100;
-              studentsList[index]['grading_status'] = 'graded';
-            }
-          }
-        }
-        // --- FIX END ---
 
         if (isDefaultQuery) {
           final jsonData = jsonEncode(response);
@@ -702,61 +715,46 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
         return Right(response);
       } catch (remoteError) {
-        if (page == 1) {
-          final isOffline = await _isOffline();
-          if (isOffline) {
-            final cachedJsonString = await localDataSource.getQuizStudentsCache(
-              cacheKey,
-            );
+        final isOffline = await _isOffline();
+        if (isOffline) {
+          final cachedJsonString = await localDataSource.getQuizStudentsCache(
+            cacheKey,
+          );
 
-            if (cachedJsonString == null) {
-              return const Left(
-                CacheFailure(
-                  message:
-                      'عذراً، لا تتوفر بيانات محفوظة محلياً لهذا الاختبار. يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.',
-                ),
-              );
+          if (cachedJsonString == null) {
+            return const Left(
+              CacheFailure(
+                message:
+                    'عذراً، لا تتوفر بيانات محفوظة محلياً. يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً.',
+              ),
+            );
+          }
+
+          final Map<String, dynamic> cachedData = jsonDecode(cachedJsonString);
+          if (cachedData['data'] != null &&
+              cachedData['data']['grades'] != null) {
+            List gradesList = cachedData['data']['grades'];
+
+            if (gradingStatus == 'graded') {
+              gradesList = gradesList.where((s) => s['grade'] != null).toList();
+            } else if (gradingStatus == 'not_graded') {
+              gradesList = gradesList.where((s) => s['grade'] == null).toList();
             }
 
-            // Apply offline search and filter
-            final Map<String, dynamic> cachedData = jsonDecode(
-              cachedJsonString,
-            );
-            if (cachedData['data'] != null &&
-                cachedData['data']['students'] != null) {
-              List studentsList = cachedData['data']['students'];
-
-              // 1. Grading Filter
-              if (gradingStatus != 'all') {
-                studentsList = studentsList
-                    .where((s) => s['grading_status'] == gradingStatus)
-                    .toList();
-              }
-
-              // 2. Search Filter
-              if (search.isNotEmpty) {
-                final query = search.toLowerCase();
-                studentsList = studentsList.where((s) {
-                  final name = s['name']?.toString().toLowerCase() ?? '';
-                  final code = s['studentCode']?.toString().toLowerCase() ?? '';
-                  final phone = s['phone']?.toString().toLowerCase() ?? '';
-                  return name.contains(query) ||
-                      code.contains(query) ||
-                      phone.contains(query);
-                }).toList();
-              }
-
-              cachedData['data']['students'] = studentsList;
-
-              // 3. Disable pagination
-              cachedData['pagination'] = {
-                'current_page': 1,
-                'last_page': 1,
-                'has_next_page': false,
-              };
-
-              return Right(cachedData);
+            if (search.isNotEmpty) {
+              final query = search.toLowerCase();
+              gradesList = gradesList.where((s) {
+                final name = s['name']?.toString().toLowerCase() ?? '';
+                final code = s['student_code']?.toString().toLowerCase() ?? '';
+                final phone = s['phone_number']?.toString().toLowerCase() ?? '';
+                return name.contains(query) ||
+                    code.contains(query) ||
+                    phone.contains(query);
+              }).toList();
             }
+
+            cachedData['data']['grades'] = gradesList;
+            return Right(cachedData);
           }
         }
 
@@ -778,12 +776,11 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>?>> getCachedQuizStudents(
+  Future<Either<Failure, Map<String, dynamic>?>> getCachedSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
   ) async {
     try {
-      final cacheKey = 'quiz_students_${sessionId}_${quizTemplateId}';
+      final cacheKey = 'quiz_grades_$sessionId';
       final cachedJsonString = await localDataSource.getQuizStudentsCache(
         cacheKey,
       );
@@ -799,93 +796,88 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
-  Future<Either<Failure, Map<String, dynamic>>> updateQuizGrade(
-    String quizAttemptId,
-    num grade,
+  Future<Either<Failure, Map<String, dynamic>>> addOrUpdateQuizGrade(
     String sessionId,
-    String quizTemplateId,
+    String studentId,
+    num grade,
   ) async {
     try {
       final isOffline = await _isOffline();
 
-      // Retrieve Local Cache Data to get studentId and maxScore
-      final cacheKey = 'quiz_students_${sessionId}_${quizTemplateId}';
-      final cachedJsonString = await localDataSource.getQuizStudentsCache(
-        cacheKey,
-      );
-
-      Map<String, dynamic>? dynamicData;
-      List? studentsList;
-      int studentIndex = -1;
-      String studentId = '';
-      num maxScore = 2; // fallback
-
-      if (cachedJsonString != null) {
-        dynamicData = jsonDecode(cachedJsonString);
-        if (dynamicData != null &&
-            dynamicData['data'] != null &&
-            dynamicData['data']['students'] != null) {
-          studentsList = dynamicData['data']['students'];
-          studentIndex = studentsList!.indexWhere(
-            (s) => s['quiz_attempt_id'] == quizAttemptId,
+      if (!isOffline) {
+        try {
+          final response = await remoteDataSource.addOrUpdateQuizGrade(
+            sessionId,
+            studentId,
+            grade,
           );
 
-          if (studentIndex != -1) {
-            studentId = studentsList[studentIndex]['student_id'] ?? '';
-            maxScore = studentsList[studentIndex]['maxScore'] ?? 2;
+          // Update Local Cache on successful online request
+          try {
+            final cacheKey = 'quiz_grades_$sessionId';
+            final cachedJsonString = await localDataSource.getQuizStudentsCache(
+              cacheKey,
+            );
+
+            if (cachedJsonString != null) {
+              final Map<String, dynamic> dynamicData = jsonDecode(
+                cachedJsonString,
+              );
+              if (dynamicData['data'] != null &&
+                  dynamicData['data']['grades'] != null) {
+                final List gradesList = dynamicData['data']['grades'];
+                final studentIndex = gradesList.indexWhere(
+                  (s) => s['student_id'] == studentId,
+                );
+
+                if (studentIndex != -1) {
+                  gradesList[studentIndex]['grade'] = grade;
+                  final updatedJsonData = jsonEncode(dynamicData);
+                  await localDataSource.saveQuizStudentsCache(
+                    cacheKey,
+                    updatedJsonData,
+                  );
+                }
+              }
+            }
+          } catch (cacheError) {
+            // Silently fail cache update
           }
+          return Right(response);
+        } catch (remoteError) {
+          final errorMessage = remoteError.toString();
+          // Distinguish between application/backend 400 error and a network/timeout failure
+          final isNetworkError =
+              errorMessage.contains('Failed host lookup') ||
+              errorMessage.contains('Connection refused') ||
+              errorMessage.contains('Network is unreachable') ||
+              errorMessage.contains('SocketException');
+
+          if (!isNetworkError) {
+            // It's a backend response like 400/403/422. Do NOT queue offline.
+            if (remoteError is Failure) return Left(remoteError);
+            return Left(
+              ServerFailure(
+                message: errorMessage.replaceAll('Exception: ', ''),
+              ),
+            );
+          }
+          // If it IS a network error despite isOffline being false, it will fall through to the offline handler
         }
       }
 
-      // Local Validation
-      if (grade < 0 || grade > maxScore) {
-        return Left(
-          CacheFailure(message: 'يجب أن تكون الدرجة بين 0 و $maxScore'),
-        );
-      }
-
-      if (isOffline) {
-        if (studentIndex == -1 || studentsList == null || dynamicData == null) {
-          return const Left(
-            CacheFailure(
-              message: 'عذراً، بيانات هذا الكويز غير متوفرة محلياً.',
-            ),
-          );
-        }
-
-        // 1. Save locally to PendingQueue
-        final pendingModel = PendingQuizGradeModel(
-          quizAttemptId: quizAttemptId,
-          studentId: studentId,
-          sessionId: sessionId,
-          quizTemplateId: quizTemplateId,
-          grade: grade,
-        );
-        await localDataSource.savePendingQuizGrade(pendingModel);
-
-        // 2. Update Quiz Students Cache
-        studentsList[studentIndex]['grade'] = grade;
-        studentsList[studentIndex]['percentage'] = (grade / maxScore) * 100;
-        studentsList[studentIndex]['grading_status'] = 'graded';
-
-        await localDataSource.saveQuizStudentsCache(
-          cacheKey,
-          jsonEncode(dynamicData),
-        );
-
-        return const Right({
-          "message": "تم حفظ الدرجة محليًا وسيتم مزامنتها عند عودة الإنترنت.",
-        });
-      }
-
-      final response = await remoteDataSource.updateQuizGrade(
-        quizAttemptId,
-        grade,
+      // Offline Handler (isOffline == true or Network Exception)
+      // Save locally to PendingQueue
+      final pendingModel = PendingQuizGradeModel(
+        studentId: studentId,
+        sessionId: sessionId,
+        grade: grade,
       );
+      await localDataSource.savePendingQuizGrade(pendingModel);
 
-      // Update Local Cache (default query only)
+      // Update Local Cache eagerly
       try {
-        final cacheKey = 'quiz_students_${sessionId}_${quizTemplateId}';
+        final cacheKey = 'quiz_grades_$sessionId';
         final cachedJsonString = await localDataSource.getQuizStudentsCache(
           cacheKey,
         );
@@ -893,45 +885,30 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         if (cachedJsonString != null) {
           final Map<String, dynamic> dynamicData = jsonDecode(cachedJsonString);
           if (dynamicData['data'] != null &&
-              dynamicData['data']['students'] != null) {
-            final List studentsList = dynamicData['data']['students'];
-
-            final studentIndex = studentsList.indexWhere(
-              (s) => s['quiz_attempt_id'] == quizAttemptId,
+              dynamicData['data']['grades'] != null) {
+            final List gradesList = dynamicData['data']['grades'];
+            final studentIndex = gradesList.indexWhere(
+              (s) => s['student_id'] == studentId,
             );
 
-            if (studentIndex != -1 && response['data'] != null) {
-              // Merge updated fields from response
-              final updatedStudentData = response['data'];
-              studentsList[studentIndex]['grade'] = updatedStudentData['grade'];
-              studentsList[studentIndex]['maxScore'] =
-                  updatedStudentData['maxScore'];
-              studentsList[studentIndex]['percentage'] =
-                  updatedStudentData['percentage'];
-              studentsList[studentIndex]['grading_status'] =
-                  updatedStudentData['grading_status'];
-              if (updatedStudentData['passed'] != null) {
-                studentsList[studentIndex]['passed'] =
-                    updatedStudentData['passed'];
-              }
-
-              // Save back to cache
+            if (studentIndex != -1) {
+              gradesList[studentIndex]['grade'] = grade;
               final updatedJsonData = jsonEncode(dynamicData);
               await localDataSource.saveQuizStudentsCache(
                 cacheKey,
                 updatedJsonData,
               );
-
-              // If there was any pending offline grade for this attempt, it is now obsolete
-              await localDataSource.deletePendingQuizGrade(quizAttemptId);
             }
           }
         }
       } catch (cacheError) {
-        // Silently fail cache update to avoid blocking successful remote save
+        // Silently fail cache update
       }
 
-      return Right(response);
+      return const Right({
+        "status": true,
+        "message": "تم حفظ الدرجة محليًا وسيتم مزامنتها عند عودة الإنترنت.",
+      });
     } catch (e) {
       if (e is Failure) return Left(e);
       return Left(

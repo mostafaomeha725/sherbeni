@@ -5,28 +5,32 @@ class QuizStudentEntity extends Equatable {
   final String name;
   final String studentCode;
   final String email;
-  final String? phone;
+  final String? phoneNumber;
   final String? picture;
   final String offlineStatus;
   final String? quizAttemptId;
   final String gradingStatus;
   final num? grade;
-  final num maxScore;
-  final num percentage;
+  final num? maxScore;
+  final num? percentage;
+  final Map<String, dynamic>? approvedBy;
+  final String? approvedAt;
 
   const QuizStudentEntity({
     required this.studentId,
     required this.name,
     required this.studentCode,
     required this.email,
-    this.phone,
+    this.phoneNumber,
     this.picture,
     required this.offlineStatus,
     this.quizAttemptId,
     required this.gradingStatus,
     this.grade,
-    required this.maxScore,
-    required this.percentage,
+    this.maxScore,
+    this.percentage,
+    this.approvedBy,
+    this.approvedAt,
   });
 
   @override
@@ -35,7 +39,7 @@ class QuizStudentEntity extends Equatable {
     name,
     studentCode,
     email,
-    phone,
+    phoneNumber,
     picture,
     offlineStatus,
     quizAttemptId,
@@ -43,5 +47,7 @@ class QuizStudentEntity extends Equatable {
     grade,
     maxScore,
     percentage,
+    approvedBy,
+    approvedAt,
   ];
 }

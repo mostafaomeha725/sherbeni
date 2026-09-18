@@ -17,10 +17,10 @@ class PendingQuizGradeModelAdapter extends TypeAdapter<PendingQuizGradeModel> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return PendingQuizGradeModel(
-      quizAttemptId: fields[0] as String,
+      quizAttemptId: fields[0] as String?,
       studentId: fields[1] as String,
       sessionId: fields[2] as String,
-      quizTemplateId: fields[3] as String,
+      quizTemplateId: fields[3] as String?,
       grade: fields[4] as num,
       error: fields[5] as String?,
     );

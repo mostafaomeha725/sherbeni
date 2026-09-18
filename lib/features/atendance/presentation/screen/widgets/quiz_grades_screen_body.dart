@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:qrattendance/core/theme/light_colors.dart';
 import 'package:qrattendance/core/utils/easy_loading.dart';
-import 'package:qrattendance/core/widgets/custom_text.dart';
 import 'package:qrattendance/core/widgets/empty_state_widget.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
@@ -14,13 +12,8 @@ import 'package:qrattendance/features/atendance/presentation/screen/widgets/quiz
 
 class QuizGradesScreenBody extends StatefulWidget {
   final SessionEntity session;
-  final String quizTemplateId;
 
-  const QuizGradesScreenBody({
-    super.key,
-    required this.session,
-    required this.quizTemplateId,
-  });
+  const QuizGradesScreenBody({super.key, required this.session});
 
   @override
   State<QuizGradesScreenBody> createState() => _QuizGradesScreenBodyState();
@@ -28,24 +21,9 @@ class QuizGradesScreenBody extends StatefulWidget {
 
 class _QuizGradesScreenBodyState extends State<QuizGradesScreenBody> {
   final TextEditingController _searchController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.7) {
-      context.read<QuizGradesCubit>().fetchNextPage();
-    }
-  }
 
   @override
   void dispose() {
-    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -124,25 +102,11 @@ class _QuizGradesScreenBodyState extends State<QuizGradesScreenBody> {
                           icon: Icons.person_off_outlined,
                         )
                       : ListView.separated(
-                          controller: _scrollController,
                           padding: EdgeInsets.only(bottom: 24.h),
-                          itemCount:
-                              state.students.length +
-                              (state.isFetchingMore ? 1 : 0),
+                          itemCount: state.students.length,
                           separatorBuilder: (context, index) =>
                               SizedBox(height: 12.h),
                           itemBuilder: (context, index) {
-                            if (index == state.students.length) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: CircularProgressIndicator(
-                                    color: AppLightColors.primary,
-                                  ),
-                                ),
-                              );
-                            }
-
                             final student = state.students[index];
                             final currentGrade = student.grade;
 
@@ -152,7 +116,7 @@ class _QuizGradesScreenBodyState extends State<QuizGradesScreenBody> {
                               quizMaxGrade: student.maxScore,
                               onGradeEntered: (grade) {
                                 context.read<QuizGradesCubit>().updateGrade(
-                                  student.quizAttemptId ?? '',
+                                  student.studentId,
                                   grade,
                                 );
                               },

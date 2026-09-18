@@ -41,6 +41,9 @@ class SessionModel extends HiveObject {
   @HiveField(11)
   final int lateCount;
 
+  @HiveField(12, defaultValue: true)
+  final bool hasQuiz;
+
   SessionModel({
     required this.id,
     required this.title,
@@ -54,6 +57,7 @@ class SessionModel extends HiveObject {
     required this.totalAttendance,
     required this.attendedCount,
     required this.lateCount,
+    required this.hasQuiz,
   });
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
@@ -89,6 +93,7 @@ class SessionModel extends HiveObject {
       totalAttendance: json['total_attendance'] ?? 0,
       attendedCount: json['attended_count'] ?? 0,
       lateCount: json['late_count'] ?? 0,
+      hasQuiz: json['hasQuiz'] as bool? ?? true,
     );
   }
 
@@ -105,6 +110,7 @@ class SessionModel extends HiveObject {
     "total_attendance": totalAttendance,
     "attended_count": attendedCount,
     "late_count": lateCount,
+    "hasQuiz": hasQuiz,
   };
 
   SessionEntity toEntity() {
@@ -121,6 +127,7 @@ class SessionModel extends HiveObject {
       totalAttendance: totalAttendance,
       attendedCount: attendedCount,
       lateCount: lateCount,
+      hasQuiz: hasQuiz,
     );
   }
 }

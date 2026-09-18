@@ -89,13 +89,12 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: Routes.quizGradesScreen,
       builder: (context, state) {
-        final args = state.extra as Map<String, dynamic>;
-        final session = args['session'] as SessionEntity;
-        final quizTemplateId = args['quizTemplateId'] as String;
-        return QuizGradesScreen(
-          session: session,
-          quizTemplateId: quizTemplateId,
-        );
+        // Can accept SessionEntity directly or inside a Map
+        final session = state.extra is Map
+            ? (state.extra as Map)['session'] as SessionEntity
+            : state.extra as SessionEntity;
+
+        return QuizGradesScreen(session: session);
       },
     ),
   ],

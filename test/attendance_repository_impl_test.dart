@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:qrattendance/features/atendance/data/data_sources/attendance_local_data_source.dart';
@@ -8,6 +7,7 @@ import 'package:qrattendance/features/atendance/data/model/attendance_model.dart
 import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
 import 'package:qrattendance/features/atendance/data/repositories/attendance_repository_impl.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:qrattendance/core/error/failure.dart';
 
 class FakeConnectivity implements Connectivity {
   bool isConnectedValue = true;
@@ -44,27 +44,23 @@ class FakeAttendanceLocalDataSource implements AttendanceLocalDataSource {
       pendingGrades.values.toList();
 
   @override
-  Future<PendingQuizGradeModel?> getPendingQuizGrade(
-    String quizAttemptId,
-  ) async => pendingGrades[quizAttemptId];
+  Future<PendingQuizGradeModel?> getPendingQuizGrade(String key) async =>
+      pendingGrades[key];
 
   @override
   Future<void> savePendingQuizGrade(PendingQuizGradeModel model) async {
-    pendingGrades[model.quizAttemptId] = model;
+    pendingGrades[model.pendingKey] = model;
   }
 
   @override
-  Future<void> deletePendingQuizGrade(String quizAttemptId) async {
-    pendingGrades.remove(quizAttemptId);
+  Future<void> deletePendingQuizGrade(String key) async {
+    pendingGrades.remove(key);
   }
 
   @override
-  Future<void> markPendingQuizGradeAsFailed(
-    String quizAttemptId,
-    String error,
-  ) async {
-    if (pendingGrades.containsKey(quizAttemptId)) {
-      pendingGrades[quizAttemptId]!.error = error;
+  Future<void> markPendingQuizGradeAsFailed(String key, String error) async {
+    if (pendingGrades.containsKey(key)) {
+      pendingGrades[key]!.error = error;
     }
   }
 
@@ -73,39 +69,62 @@ class FakeAttendanceLocalDataSource implements AttendanceLocalDataSource {
 }
 
 class FakeAttendanceRemoteDataSource implements AttendanceRemoteDataSource {
-  Map<String, dynamic> mockQuizStudentsResponse = {};
-  Map<String, dynamic> mockUpdateResponse = {};
-  bool shouldThrowOnUpdate = false;
-  bool shouldThrowOnGetQuizStudents = false;
-  Future<void> Function()? onUpdateGradeCalled;
+  Map<String, dynamic> mockSessionQuizGradesResponse = {};
+  Map<String, dynamic> mockAddOrUpdateQuizGradeResponse = {};
+  Map<String, dynamic> mockSyncBulkResponse = {};
+
+  bool shouldThrowOnSessionQuizGrades = false;
+  bool shouldThrowOnAddOrUpdate = false;
+  bool shouldThrowOnSyncBulk = false;
+  bool isNetworkError = false;
+  bool isValidationError = false;
+
+  Future<void> Function()? onSyncBulkCalled;
 
   @override
-  Future<Map<String, dynamic>> getQuizStudents(
+  Future<Map<String, dynamic>> getSessionQuizGrades(
     String sessionId,
-    String quizTemplateId,
-    int page,
-    int limit,
     String search,
     String gradingStatus,
   ) async {
-    if (shouldThrowOnGetQuizStudents) {
-      throw Exception('Network error');
+    if (shouldThrowOnSessionQuizGrades) {
+      throw ServerFailure(message: 'Network error');
     }
-    return mockQuizStudentsResponse;
+    return mockSessionQuizGradesResponse;
   }
 
   @override
-  Future<Map<String, dynamic>> updateQuizGrade(
-    String quizAttemptId,
+  Future<Map<String, dynamic>> addOrUpdateQuizGrade(
+    String sessionId,
+    String studentId,
     num grade,
   ) async {
-    if (onUpdateGradeCalled != null) {
-      await onUpdateGradeCalled!();
+    if (shouldThrowOnAddOrUpdate) {
+      if (isNetworkError) {
+        throw Exception('Failed host lookup');
+      } else if (isValidationError) {
+        throw ServerFailure(message: 'Invalid grade format');
+      }
+      throw ServerFailure(message: 'Generic server error');
     }
-    if (shouldThrowOnUpdate) {
-      throw Exception('Network error');
+    return mockAddOrUpdateQuizGradeResponse;
+  }
+
+  @override
+  Future<Map<String, dynamic>> syncBulkQuizGrades(
+    String sessionId,
+    List<Map<String, dynamic>> grades,
+  ) async {
+    if (onSyncBulkCalled != null) {
+      await onSyncBulkCalled!();
     }
-    return mockUpdateResponse;
+    if (shouldThrowOnSyncBulk) {
+      if (isValidationError) {
+        throw Exception('grades.0.student_id must be a UUID');
+      }
+      throw ServerFailure(message: 'Generic server error');
+    }
+    return mockSyncBulkResponse;
   }
 
   @override
@@ -114,502 +133,265 @@ class FakeAttendanceRemoteDataSource implements AttendanceRemoteDataSource {
 
 void main() {
   late AttendanceRepositoryImpl repository;
-  late FakeAttendanceLocalDataSource localDataSource;
-  late FakeAttendanceRemoteDataSource remoteDataSource;
-  late FakeConnectivity connectivity;
+  late FakeAttendanceLocalDataSource mockLocalDataSource;
+  late FakeAttendanceRemoteDataSource mockRemoteDataSource;
+  late FakeConnectivity mockConnectivity;
 
   setUp(() {
-    localDataSource = FakeAttendanceLocalDataSource();
-    remoteDataSource = FakeAttendanceRemoteDataSource();
-    connectivity = FakeConnectivity();
+    mockLocalDataSource = FakeAttendanceLocalDataSource();
+    mockRemoteDataSource = FakeAttendanceRemoteDataSource();
+    mockConnectivity = FakeConnectivity();
     repository = AttendanceRepositoryImpl(
-      remoteDataSource: remoteDataSource,
-      localDataSource: localDataSource,
-      connectivity: connectivity,
+      localDataSource: mockLocalDataSource,
+      remoteDataSource: mockRemoteDataSource,
+      connectivity: mockConnectivity,
     );
   });
 
-  Map<String, dynamic> createMockStudents(List<Map<String, dynamic>> students) {
-    return {
-      'status': true,
-      'data': {'students': students},
-    };
-  }
+  group('Offline Quiz Grades Bulk API & Queueing', () {
+    test('Offline network failure creates pending grade', () async {
+      mockConnectivity.isConnectedValue = false; // Offline
 
-  test(
-    'TEST 1 - Offline grade persists after reconnect (Cache Consistency)',
-    () async {
-      // 1. Initial State (cache = grade 1)
-      final cacheKey = 'quiz_students_s1_t1';
-      final initialData = createMockStudents([
-        {
-          'quiz_attempt_id': 'att_1',
-          'student_id': 'stud_1',
-          'grade': 1,
-          'maxScore': 2,
-          'percentage': 50,
-        },
-      ]);
-      localDataSource.quizStudentsCache[cacheKey] = jsonEncode(initialData);
-
-      // 2. Go Offline, update grade to 1.55
-      connectivity.isConnectedValue = false;
-      await repository.updateQuizGrade('att_1', 1.55, 's1', 't1');
-
-      // Assert offline state
-      expect(localDataSource.pendingGrades.containsKey('att_1'), true);
-      expect(localDataSource.pendingGrades['att_1']!.grade, 1.55);
-
-      final updatedCache = jsonDecode(
-        localDataSource.quizStudentsCache[cacheKey]!,
-      );
-      expect(updatedCache['data']['students'][0]['grade'], 1.55);
-
-      // 3. Reconnect and fetch API (Simulating the race condition where API returns old grade 1)
-      connectivity.isConnectedValue = true;
-      remoteDataSource.mockQuizStudentsResponse =
-          initialData; // API returns grade 1
-
-      final fetchResult = await repository.getQuizStudents(
-        's1',
-        't1',
-        1,
-        10,
-        '',
-        'all',
+      final result = await repository.addOrUpdateQuizGrade(
+        'session-1',
+        'stu-1',
+        9.5,
       );
 
-      // 4. Verify that repository correctly applied pending grade to the API response
-      fetchResult.fold((l) => fail('Should not fail'), (data) {
-        expect(data['data']['students'][0]['grade'], 1.55);
-      });
+      expect(result.isRight(), true);
+      expect(mockLocalDataSource.pendingGrades.length, 1);
+      final pending = mockLocalDataSource.pendingGrades['session-1_stu-1'];
+      expect(pending?.grade, 9.5);
+    });
 
-      // Verify cache was NOT overwritten with stale remote grade 1
-      final finalCache = jsonDecode(
-        localDataSource.quizStudentsCache[cacheKey]!,
-      );
-      expect(finalCache['data']['students'][0]['grade'], 1.55);
-    },
-  );
+    test('Online network exception creates pending grade', () async {
+      mockConnectivity.isConnectedValue = true; // Online
+      mockRemoteDataSource.shouldThrowOnAddOrUpdate = true;
+      mockRemoteDataSource.isNetworkError =
+          true; // Simulating "Failed host lookup"
 
-  test('TEST 2 - Successful sync must not restore old grade', () async {
-    // Given
-    localDataSource.pendingGrades['att_1'] = PendingQuizGradeModel(
-      quizAttemptId: 'att_1',
-      studentId: 'stud_1',
-      sessionId: 's1',
-      quizTemplateId: 't1',
-      grade: 1.55,
-    );
-
-    final cacheKey = 'quiz_students_s1_t1';
-    localDataSource.quizStudentsCache[cacheKey] = jsonEncode(
-      createMockStudents([
-        {'quiz_attempt_id': 'att_1', 'grade': 1, 'maxScore': 2},
-      ]),
-    );
-
-    // Remote responds with successful 1.55
-    remoteDataSource.mockUpdateResponse = {
-      'status': true,
-      'data': {
-        'grade': 1.55,
-        'maxScore': 2,
-        'percentage': 77.5,
-        'grading_status': 'graded',
-      },
-    };
-
-    // Act
-    await repository.syncOfflineData();
-
-    // Assert
-    expect(localDataSource.pendingGrades.containsKey('att_1'), false);
-    final cache = jsonDecode(localDataSource.quizStudentsCache[cacheKey]!);
-    expect(cache['data']['students'][0]['grade'], 1.55);
-    expect(cache['data']['students'][0]['percentage'], 77.5);
-  });
-
-  test('TEST 3 - Failed sync keeps pending grade', () async {
-    // Given
-    localDataSource.pendingGrades['att_1'] = PendingQuizGradeModel(
-      quizAttemptId: 'att_1',
-      studentId: 'stud_1',
-      sessionId: 's1',
-      quizTemplateId: 't1',
-      grade: 1.55,
-    );
-
-    remoteDataSource.shouldThrowOnUpdate = true;
-
-    // Act
-    await repository.syncOfflineData();
-
-    // Assert
-    expect(
-      localDataSource.pendingGrades.containsKey('att_1'),
-      true,
-    ); // Still pending
-  });
-
-  test(
-    'TEST 4 - Race condition protection (User updates offline while sync is in flight)',
-    () async {
-      // Given
-      localDataSource.pendingGrades['att_1'] = PendingQuizGradeModel(
-        quizAttemptId: 'att_1',
-        studentId: 'stud_1',
-        sessionId: 's1',
-        quizTemplateId: 't1',
-        grade: 1, // Syncing grade 1
+      final result = await repository.addOrUpdateQuizGrade(
+        'session-1',
+        'stu-1',
+        9.5,
       );
 
-      remoteDataSource.mockUpdateResponse = {
-        'data': {'grade': 1, 'maxScore': 2},
-      };
+      expect(result.isRight(), true);
+      expect(mockLocalDataSource.pendingGrades.length, 1);
+    });
 
-      // Simulate user modifying grade to 2.25 while sync is in flight
-      remoteDataSource.onUpdateGradeCalled = () async {
-        localDataSource.pendingGrades['att_1'] = PendingQuizGradeModel(
-          quizAttemptId: 'att_1',
-          studentId: 'stud_1',
-          sessionId: 's1',
-          quizTemplateId: 't1',
-          grade: 2.25, // New grade
-        );
-      };
+    test('Online backend 400 does NOT create pending grade', () async {
+      mockConnectivity.isConnectedValue = true;
+      mockRemoteDataSource.shouldThrowOnAddOrUpdate = true;
+      mockRemoteDataSource.isNetworkError = false;
+      mockRemoteDataSource.isValidationError = true; // 400 Validation
 
-      // Act
+      final result = await repository.addOrUpdateQuizGrade(
+        'session-1',
+        'stu-1',
+        9.5,
+      );
+
+      expect(result.isLeft(), true);
+      expect(
+        mockLocalDataSource.pendingGrades.length,
+        0,
+      ); // No pending grade created
+    });
+
+    test('Invalid UUID is never sent and is marked failed', () async {
+      // Create pending with invalid UUID
+      final pendingModel = PendingQuizGradeModel(
+        studentId: 'not-a-uuid',
+        sessionId: 'session-1',
+        grade: 5.0,
+      );
+      await mockLocalDataSource.savePendingQuizGrade(pendingModel);
+
       await repository.syncOfflineData();
 
-      // Assert
-      expect(localDataSource.pendingGrades.containsKey('att_1'), true);
+      // It should still be in pending but marked with error
+      expect(mockLocalDataSource.pendingGrades.length, 1);
       expect(
-        localDataSource.pendingGrades['att_1']!.grade,
-        2.25,
-      ); // Kept the newer pending
-    },
-  );
-
-  test('TEST 5 - Decimal preservation', () async {
-    connectivity.isConnectedValue = false;
-    final cacheKey = 'quiz_students_s1_t1';
-    localDataSource.quizStudentsCache[cacheKey] = jsonEncode(
-      createMockStudents([
-        {'quiz_attempt_id': 'att_1', 'grade': 1, 'maxScore': 2},
-      ]),
-    );
-
-    // Update offline
-    await repository.updateQuizGrade('att_1', 1.55, 's1', 't1');
-
-    expect(localDataSource.pendingGrades['att_1']!.grade, 1.55);
-
-    // Sync online
-    remoteDataSource.mockUpdateResponse = {
-      'data': {'grade': 1.55, 'maxScore': 2},
-    };
-    await repository.syncOfflineData();
-
-    final cache = jsonDecode(localDataSource.quizStudentsCache[cacheKey]!);
-    expect(cache['data']['students'][0]['grade'], 1.55); // Maintained perfectly
-  });
-
-  test(
-    'TEST 6 - Online update overwrites in-flight sync (delete pending)',
-    () async {
-      connectivity.isConnectedValue = true;
-      final cacheKey = 'quiz_students_s1_t1';
-      localDataSource.quizStudentsCache[cacheKey] = jsonEncode(
-        createMockStudents([
-          {'quiz_attempt_id': 'att_1', 'grade': 1, 'maxScore': 2},
-        ]),
+        mockLocalDataSource.pendingGrades['session-1_not-a-uuid']!.error,
+        "Invalid student_id UUID format",
       );
+    });
 
-      // Given there is a stale pending grade (e.g. 1)
-      localDataSource.pendingGrades['att_1'] = PendingQuizGradeModel(
-        quizAttemptId: 'att_1',
-        studentId: 'stud_1',
-        sessionId: 's1',
-        quizTemplateId: 't1',
-        grade: 1,
-      );
+    test(
+      'Multiple grades for same session/student keep only latest due to key design',
+      () async {
+        final p1 = PendingQuizGradeModel(
+          studentId: 'uuid1234-uuid-uuid-uuid-uuid12345678',
+          sessionId: 'session-1',
+          grade: 1.0,
+        );
+        await mockLocalDataSource.savePendingQuizGrade(p1);
 
-      // User performs online update to 2
-      remoteDataSource.mockUpdateResponse = {
-        'data': {'grade': 2, 'maxScore': 2},
-      };
+        // Override with new grade
+        final p2 = PendingQuizGradeModel(
+          studentId: 'uuid1234-uuid-uuid-uuid-uuid12345678',
+          sessionId: 'session-1',
+          grade: 2.0,
+        );
+        await mockLocalDataSource.savePendingQuizGrade(p2);
 
-      await repository.updateQuizGrade('att_1', 2, 's1', 't1');
-
-      // Assert the obsolete pending grade was deleted
-      expect(localDataSource.pendingGrades.containsKey('att_1'), false);
-
-      // Simulating the delayed in-flight sync finishing now
-      // It will encounter currentPending == null and skip cache overwrite
-    },
-  );
-  void setupSearchCache() {
-    connectivity.isConnectedValue = false; // Offline
-    remoteDataSource.shouldThrowOnGetQuizStudents = true;
-    final cacheKey = 'quiz_students_s1_t1';
-    localDataSource.quizStudentsCache[cacheKey] = jsonEncode(
-      createMockStudents([
-        {
-          'quiz_attempt_id': 'att_1',
-          'name': 'Ahmed',
-          'studentCode': '100',
-          'phone': '010',
-          'grading_status': 'graded',
-        },
-        {
-          'quiz_attempt_id': 'att_2',
-          'name': 'Mohamed',
-          'studentCode': '200',
-          'phone': '011',
-          'grading_status': 'unknown',
-        },
-        {
-          'quiz_attempt_id': 'att_3',
-          'name': 'Ahmed Ali',
-          'studentCode': '300',
-          'phone': '012',
-          'grading_status': 'unknown',
-        },
-        {
-          'quiz_attempt_id': 'att_4',
-          'name': 'Ali',
-          'studentCode': '400',
-          'phone': '013',
-          'grading_status': 'graded',
-        },
-      ]),
+        expect(mockLocalDataSource.pendingGrades.length, 1);
+        expect(
+          mockLocalDataSource
+              .pendingGrades['session-1_uuid1234-uuid-uuid-uuid-uuid12345678']!
+              .grade,
+          2.0,
+        );
+      },
     );
-  }
 
-  test('TEST 7 - Offline All uses default cache', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      '',
-      'all',
+    test(
+      'Successful bulk sync removes only successfully synced operations and updates cache',
+      () async {
+        final studentId = '11111111-1111-1111-1111-111111111111';
+        final sessionId = 'session-1';
+
+        await mockLocalDataSource.savePendingQuizGrade(
+          PendingQuizGradeModel(
+            studentId: studentId,
+            sessionId: sessionId,
+            grade: 10.0,
+          ),
+        );
+
+        // Setup cache
+        final cacheData = {
+          'data': {
+            'grades': [
+              {'student_id': studentId, 'name': 'Test Student', 'grade': null},
+            ],
+          },
+        };
+        await mockLocalDataSource.saveQuizStudentsCache(
+          'quiz_grades_$sessionId',
+          jsonEncode(cacheData),
+        );
+
+        // Setup mock remote response
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          'data': {
+            'grades': [
+              {'student_id': studentId, 'grade': 10.0, 'approved_by': 'Admin'},
+            ],
+          },
+        };
+
+        await repository.syncOfflineData();
+
+        expect(mockLocalDataSource.pendingGrades.length, 0); // Deleted
+
+        final updatedCacheStr = await mockLocalDataSource.getQuizStudentsCache(
+          'quiz_grades_$sessionId',
+        );
+        final updatedCache = jsonDecode(updatedCacheStr!);
+        expect(updatedCache['data']['grades'][0]['grade'], 10.0);
+        expect(updatedCache['data']['grades'][0]['approved_by'], 'Admin');
+        expect(
+          updatedCache['data']['grades'][0]['name'],
+          'Test Student',
+        ); // Unrelated fields preserved
+      },
     );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 4);
-  });
 
-  test('TEST 8 - Offline Graded uses default cache', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      '',
-      'graded',
+    test(
+      'Race condition: grade changes while bulk request is in flight',
+      () async {
+        final studentId = '22222222-2222-2222-2222-222222222222';
+        final sessionId = 'session-2';
+
+        await mockLocalDataSource.savePendingQuizGrade(
+          PendingQuizGradeModel(
+            studentId: studentId,
+            sessionId: sessionId,
+            grade: 5.0,
+          ),
+        );
+
+        // Simulate user updating the grade to 8.0 while the sync is in flight
+        mockRemoteDataSource.onSyncBulkCalled = () async {
+          await mockLocalDataSource.savePendingQuizGrade(
+            PendingQuizGradeModel(
+              studentId: studentId,
+              sessionId: sessionId,
+              grade: 8.0, // New grade
+            ),
+          );
+        };
+
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          'data': {
+            'grades': [
+              {'student_id': studentId, 'grade': 5.0},
+            ],
+          },
+        };
+
+        await repository.syncOfflineData();
+
+        // Pending operation should NOT be deleted because it changed
+        expect(mockLocalDataSource.pendingGrades.length, 1);
+        expect(
+          mockLocalDataSource.pendingGrades['${sessionId}_$studentId']!.grade,
+          8.0,
+        );
+      },
     );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 2);
-  });
 
-  test('TEST 9 - Offline Not Graded uses default cache', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      '',
-      'unknown',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 2);
-  });
+    test('Generic bulk error keeps pending grade', () async {
+      final studentId = '33333333-3333-3333-3333-333333333333';
+      final sessionId = 'session-3';
 
-  test('TEST 10 - Offline search by name', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'all',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 2); // Ahmed, Ahmed Ali
-  });
-
-  test('TEST 11 - Offline search by student code', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      '200',
-      'all',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 1); // Mohamed
-  });
-
-  test('TEST 12 - Offline search by phone/number', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      '012',
-      'all',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 1); // Ahmed Ali
-  });
-
-  test('TEST 13 - Offline search + Graded', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'graded',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 1); // Ahmed
-  });
-
-  test('TEST 14 - Offline search + Not Graded', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'unknown',
-    );
-    final data = result.getOrElse(() => {});
-    expect((data['data']['students'] as List).length, 1); // Ahmed Ali
-  });
-
-  test('TEST 15 - Switching search/filter combinations', () async {
-    setupSearchCache();
-    // 1. All + empty search
-    var result = await repository.getQuizStudents('s1', 't1', 1, 10, '', 'all');
-    expect((result.getOrElse(() => {})['data']['students'] as List).length, 4);
-
-    // 2. Search Ahmed
-    result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'all',
-    );
-    expect((result.getOrElse(() => {})['data']['students'] as List).length, 2);
-
-    // 3. Graded + Ahmed
-    result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'graded',
-    );
-    expect((result.getOrElse(() => {})['data']['students'] as List).length, 1);
-
-    // 4. Clear search
-    result = await repository.getQuizStudents('s1', 't1', 1, 10, '', 'graded');
-    expect((result.getOrElse(() => {})['data']['students'] as List).length, 2);
-
-    // 5. All
-    result = await repository.getQuizStudents('s1', 't1', 1, 10, '', 'all');
-    expect((result.getOrElse(() => {})['data']['students'] as List).length, 4);
-  });
-
-  test('TEST 16 - No cache while offline returns friendly error', () async {
-    connectivity.isConnectedValue = false; // Offline
-    remoteDataSource.shouldThrowOnGetQuizStudents = true;
-    final result = await repository.getQuizStudents(
-      's1',
-      't2',
-      1,
-      10,
-      'Ahmed',
-      'all',
-    );
-    expect(result.isLeft(), true);
-    result.fold(
-      (l) => expect(
-        l.message.contains(
-          'عذراً، لا تتوفر بيانات محفوظة محلياً لهذا الاختبار.',
+      await mockLocalDataSource.savePendingQuizGrade(
+        PendingQuizGradeModel(
+          studentId: studentId,
+          sessionId: sessionId,
+          grade: 7.0,
         ),
-        true,
-      ),
-      (r) => fail('Should fail'),
-    );
-  });
-
-  test(
-    'TEST 17 - Offline filtering never modifies the default cache',
-    () async {
-      setupSearchCache();
-      await repository.getQuizStudents('s1', 't1', 1, 10, 'Ahmed', 'graded');
-      // Verify cache is still full 4 students
-      final cacheKey = 'quiz_students_s1_t1';
-      final cached = jsonDecode(localDataSource.quizStudentsCache[cacheKey]!);
-      expect((cached['data']['students'] as List).length, 4);
-    },
-  );
-
-  test('TEST 18 - Offline filtering disables pagination', () async {
-    setupSearchCache();
-    final result = await repository.getQuizStudents(
-      's1',
-      't1',
-      1,
-      10,
-      'Ahmed',
-      'all',
-    );
-    final data = result.getOrElse(() => {});
-    expect(data['pagination']['has_next_page'], false);
-    expect(data['pagination']['current_page'], 1);
-    expect(data['pagination']['last_page'], 1);
-  });
-
-  test(
-    'TEST 19 - Online API errors are not converted into cache results',
-    () async {
-      setupSearchCache();
-      connectivity.isConnectedValue = true; // Online
-      remoteDataSource.shouldThrowOnGetQuizStudents =
-          true; // API fails with 500/network error
-
-      final result = await repository.getQuizStudents(
-        's1',
-        't1',
-        1,
-        10,
-        'Ahmed',
-        'all',
       );
 
-      // Because it's online, it should NOT fallback to cache, it should return the server failure
-      expect(result.isLeft(), true);
-      result.fold(
-        (l) => expect(l.message, 'Network error'),
-        (r) => fail('Should fail'),
+      mockRemoteDataSource.shouldThrowOnSyncBulk = true;
+      mockRemoteDataSource.isValidationError = false; // Just a generic error
+
+      await repository.syncOfflineData();
+
+      // Still pending
+      expect(mockLocalDataSource.pendingGrades.length, 1);
+      expect(
+        mockLocalDataSource.pendingGrades['${sessionId}_$studentId']!.error,
+        null,
+      ); // Not permanently failed
+    });
+
+    test('Bulk 400 Validation error marks operations as failed', () async {
+      final studentId = '44444444-4444-4444-4444-444444444444';
+      final sessionId = 'session-4';
+
+      await mockLocalDataSource.savePendingQuizGrade(
+        PendingQuizGradeModel(
+          studentId: studentId,
+          sessionId: sessionId,
+          grade: 7.0,
+        ),
       );
-    },
-  );
+
+      mockRemoteDataSource.shouldThrowOnSyncBulk = true;
+      mockRemoteDataSource.isValidationError =
+          true; // 400 validation error returned by backend
+
+      await repository.syncOfflineData();
+
+      // Still pending but marked with error so it skips next time
+      expect(mockLocalDataSource.pendingGrades.length, 1);
+      expect(
+        mockLocalDataSource.pendingGrades['${sessionId}_$studentId']!.error,
+        contains('must be a UUID'),
+      );
+    });
+  });
 }

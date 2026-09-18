@@ -33,9 +33,9 @@ abstract class AttendanceLocalDataSource {
 
   Future<void> savePendingQuizGrade(PendingQuizGradeModel model);
   Future<List<PendingQuizGradeModel>> getPendingQuizGrades();
-  Future<PendingQuizGradeModel?> getPendingQuizGrade(String quizAttemptId);
-  Future<void> deletePendingQuizGrade(String quizAttemptId);
-  Future<void> markPendingQuizGradeAsFailed(String quizAttemptId, String error);
+  Future<PendingQuizGradeModel?> getPendingQuizGrade(String key);
+  Future<void> deletePendingQuizGrade(String key);
+  Future<void> markPendingQuizGradeAsFailed(String key, String error);
 }
 
 class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
@@ -90,7 +90,7 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   @override
   Future<void> savePendingQuizGrade(PendingQuizGradeModel model) async {
     final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
-    await box.put(model.quizAttemptId, model); // Use put to prevent duplicates
+    await box.put(model.pendingKey, model); // Use put to prevent duplicates
   }
 
   @override
@@ -100,26 +100,21 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   }
 
   @override
-  Future<PendingQuizGradeModel?> getPendingQuizGrade(
-    String quizAttemptId,
-  ) async {
+  Future<PendingQuizGradeModel?> getPendingQuizGrade(String key) async {
     final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
-    return box.get(quizAttemptId);
+    return box.get(key);
   }
 
   @override
-  Future<void> deletePendingQuizGrade(String quizAttemptId) async {
+  Future<void> deletePendingQuizGrade(String key) async {
     final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
-    await box.delete(quizAttemptId);
+    await box.delete(key);
   }
 
   @override
-  Future<void> markPendingQuizGradeAsFailed(
-    String quizAttemptId,
-    String error,
-  ) async {
+  Future<void> markPendingQuizGradeAsFailed(String key, String error) async {
     final box = Hive.box<PendingQuizGradeModel>('pendingQuizGrades');
-    final model = box.get(quizAttemptId);
+    final model = box.get(key);
     if (model != null) {
       model.error = error;
       await model.save(); // HiveObject save

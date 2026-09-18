@@ -8,18 +8,12 @@ class GetQuizStudentsUseCase {
   GetQuizStudentsUseCase(this.repository);
 
   Future<Either<Failure, Map<String, dynamic>>> call(
-    String sessionId,
-    String quizTemplateId, {
-    int page = 1,
-    int limit = 10,
+    String sessionId, {
     String search = '',
     String gradingStatus = 'all',
   }) async {
-    return await repository.getQuizStudents(
+    return await repository.getSessionQuizGrades(
       sessionId,
-      quizTemplateId,
-      page,
-      limit,
       search,
       gradingStatus,
     );
@@ -31,10 +25,7 @@ class GetCachedQuizStudentsUseCase {
 
   GetCachedQuizStudentsUseCase(this.repository);
 
-  Future<Either<Failure, Map<String, dynamic>?>> call(
-    String sessionId,
-    String quizTemplateId,
-  ) async {
-    return await repository.getCachedQuizStudents(sessionId, quizTemplateId);
+  Future<Either<Failure, Map<String, dynamic>?>> call(String sessionId) async {
+    return await repository.getCachedSessionQuizGrades(sessionId);
   }
 }
