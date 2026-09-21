@@ -11,12 +11,19 @@ import 'package:qrattendance/features/atendance/presentation/cubit/show_classes/
 
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_card.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_header.dart';
+import 'package:qrattendance/core/widgets/offline_empty_state_widget.dart';
 import 'package:qrattendance/core/widgets/empty_state_widget.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_action_sheet.dart';
 
 class SelectClassScreenBody extends StatefulWidget {
   final String subjectId;
-  const SelectClassScreenBody({super.key, required this.subjectId});
+  final String classId;
+
+  const SelectClassScreenBody({
+    super.key,
+    required this.subjectId,
+    required this.classId,
+  });
 
   @override
   State<SelectClassScreenBody> createState() => _SelectClassScreenBodyState();
@@ -27,7 +34,10 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ShowClassesCubit>().fetchClasses(widget.subjectId);
+      context.read<ShowClassesCubit>().fetchClasses(
+        widget.subjectId,
+        widget.classId,
+      );
     });
   }
 
@@ -39,6 +49,8 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
           listener: (context, state) {
             if (state is ShowClassesLoading) {
               showLoading();
+            } else if (state is ShowClassesOfflineFallback) {
+              hideLoading();
             } else {
               hideLoading();
             }
@@ -60,7 +72,9 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
                   if (state.classes.isEmpty)
                     const Expanded(
                       child: EmptyStateWidget(
-                        text: 'لا يوجد حصص متاحة حالياً',
+                        text: 'No Sessions Available',
+                        subtitle:
+                            'There are no sessions available for this subject yet.',
                         icon: Icons.meeting_room_outlined,
                       ),
                     )
@@ -122,12 +136,26 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
                               onPressed: () {
                                 context.read<ShowClassesCubit>().fetchClasses(
                                   widget.subjectId,
+                                  widget.classId,
                                 );
                               },
                             ),
                           ),
                         ],
                       ),
+                    ),
+                  )
+                else if (state is ShowClassesOfflineFallback)
+                  Expanded(
+                    child: OfflineEmptyStateWidget(
+                      description:
+                          'No sessions are available offline for this academic year. Please connect to the internet to load your sessions and try again.',
+                      onRetry: () {
+                        context.read<ShowClassesCubit>().fetchClasses(
+                          widget.subjectId,
+                          widget.classId,
+                        );
+                      },
                     ),
                   )
                 else

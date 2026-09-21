@@ -21,7 +21,7 @@ class LoginScreenBody extends StatelessWidget {
           if (state is LoginSuccess) {
             GoRouter.of(
               context,
-            ).push(Routes.attendanceScreen, extra: state.user.id);
+            ).push(Routes.academicClassesScreen, extra: state.user.id);
           } else if (state is LoginFailure) {
             showError(state.message);
           }

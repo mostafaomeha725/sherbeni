@@ -4,21 +4,19 @@ import 'package:qrattendance/core/cache/preferences_storage.dart';
 import 'package:qrattendance/core/di/services_locator.dart';
 import 'package:qrattendance/core/widgets/custom_app_bar.dart';
 import 'package:qrattendance/core/widgets/custom_loading.dart';
-import 'package:qrattendance/features/atendance/domain/entities/academic_class_entity.dart';
-import 'package:qrattendance/features/atendance/presentation/cubit/show_sessions/show_sessions_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/attendance_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/cubit/academic_classes/academic_classes_cubit.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/academic_classes_screen_body.dart';
 
-class AttendanceScreen extends StatefulWidget {
+class AcademicClassesScreen extends StatefulWidget {
   final String? token;
-  final AcademicClassEntity academicClass;
 
-  const AttendanceScreen({super.key, this.token, required this.academicClass});
+  const AcademicClassesScreen({super.key, this.token});
 
   @override
-  State<AttendanceScreen> createState() => _AttendanceScreenState();
+  State<AcademicClassesScreen> createState() => _AcademicClassesScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
+class _AcademicClassesScreenState extends State<AcademicClassesScreen> {
   String? finalToken;
   bool isLoading = true;
 
@@ -29,7 +27,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   void loadToken() {
-    // ✅ هات التوكن من SharedPreferences أو من widget لو مبعوت
     final token = sl<PreferencesStorage>().getUserToken() ?? widget.token;
     setState(() {
       finalToken = token;
@@ -43,19 +40,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       providers: [
         BlocProvider(
           create: (context) =>
-              sl<ShowSessionsCubit>()
-                ..fetchSessions(finalToken ?? '', widget.academicClass.id),
+              sl<AcademicClassesCubit>()
+                ..fetchAcademicClasses(finalToken ?? ''),
         ),
       ],
       child: Scaffold(
         backgroundColor: const Color(0xFFFDFDFE),
-        appBar: const CustomAppBar(title: 'Subjects'),
+        appBar: const CustomAppBar(
+          title: 'Academic Year',
+          showBackButton: false,
+        ),
         body: isLoading
             ? CustomLoading.showLoader()
-            : AttendanceScreenBody(
-                token: finalToken ?? '',
-                academicClass: widget.academicClass,
-              ),
+            : AcademicClassesScreenBody(token: finalToken ?? ''),
       ),
     );
   }

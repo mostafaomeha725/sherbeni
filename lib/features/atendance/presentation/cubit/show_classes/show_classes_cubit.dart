@@ -9,18 +9,23 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
 
   ShowClassesCubit(this.attendanceRepository) : super(ShowClassesInitial());
 
-  Future<void> fetchClasses(String subjectId) async {
+  Future<void> fetchClasses(String subjectId, String classId) async {
     // 1. Check local cache first
     bool hasCache = false;
     final cacheResult = await attendanceRepository.getCachedClasses(
       subjectId: subjectId,
+      classId: classId,
     );
-    cacheResult.fold((_) {}, (classes) {
-      if (classes.isNotEmpty) {
+    cacheResult.fold(
+      (failure) {
+        // No valid cache (e.g. NO_CACHE_EXISTS)
+      },
+      (classes) {
+        // Cache exists! It might be empty, but that's a valid state
         hasCache = true;
         emit(ShowClassesSuccess(classes));
-      }
-    });
+      },
+    );
 
     // 2. If no cache, emit Loading to show EasyLoading overlay
     if (!hasCache) {
@@ -30,11 +35,16 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
     // 3. Fetch remote (silently if cache exists)
     final result = await attendanceRepository.fetchClasses(
       subjectId: subjectId,
+      classId: classId,
     );
 
     result.fold((failure) {
       if (!hasCache) {
-        emit(ShowClassesFailure(failure.message));
+        if (failure.message == 'OFFLINE_FALLBACK') {
+          emit(ShowClassesOfflineFallback());
+        } else {
+          emit(ShowClassesFailure(failure.message));
+        }
       }
     }, (classes) => emit(ShowClassesSuccess(classes)));
   }

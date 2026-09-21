@@ -10,8 +10,13 @@ import 'package:qrattendance/features/atendance/presentation/cubit/check_session
 
 class SelectClassScreen extends StatelessWidget {
   final SessionEntity subject;
+  final String classId;
 
-  const SelectClassScreen({super.key, required this.subject});
+  const SelectClassScreen({
+    super.key,
+    required this.subject,
+    required this.classId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +28,7 @@ class SelectClassScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFFDFDFE),
         appBar: const CustomAppBar(title: 'Sessions'),
-        body: SelectClassScreenBody(subjectId: subject.id),
+        body: SelectClassScreenBody(subjectId: subject.id, classId: classId),
       ),
     );
   }

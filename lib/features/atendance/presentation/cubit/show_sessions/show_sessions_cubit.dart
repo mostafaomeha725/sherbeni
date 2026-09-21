@@ -10,10 +10,10 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
 
   ShowSessionsCubit(this.getSessionsUseCase) : super(ShowSessionsInitial());
 
-  Future<void> fetchSessions(String token) async {
+  Future<void> fetchSessions(String token, String classId) async {
     // 1. Check local cache first
     bool hasCache = false;
-    final cacheResult = await getSessionsUseCase.getCached();
+    final cacheResult = await getSessionsUseCase.getCached(classId: classId);
     cacheResult.fold((_) {}, (sessions) {
       if (sessions.isNotEmpty) {
         hasCache = true;
@@ -27,7 +27,10 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
     }
 
     // 3. Fetch remote (silently if cache exists)
-    final result = await getSessionsUseCase.call(token: token);
+    final result = await getSessionsUseCase.call(
+      token: token,
+      classId: classId,
+    );
 
     result.fold((failure) {
       // Only show failure if we don't already have cached data on screen

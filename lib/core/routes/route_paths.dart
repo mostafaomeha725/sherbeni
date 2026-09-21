@@ -1,5 +1,6 @@
 class Routes {
   static const loginScreen = '/login-screen';
+  static const academicClassesScreen = '/academic-classes-screen';
   static const attendanceScreen = '/Attendance-screen';
   static const selectClassScreen = '/Select-Class-screen';
   static const scanQrScreen = '/Scan-QR-screen';

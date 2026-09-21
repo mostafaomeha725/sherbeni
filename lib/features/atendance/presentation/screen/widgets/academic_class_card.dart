@@ -1,30 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart' show Bidi;
 import 'package:qrattendance/core/theme/light_colors.dart';
 import 'package:qrattendance/core/theme/styles.dart';
 import 'package:qrattendance/core/widgets/bouncing_widgets.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
-import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
+import 'package:qrattendance/features/atendance/domain/entities/academic_class_entity.dart';
 
-class SessionCard extends StatelessWidget {
-  final SessionEntity session;
+class AcademicClassCard extends StatelessWidget {
+  final AcademicClassEntity academicClass;
   final VoidCallback onTap;
 
-  const SessionCard({super.key, required this.session, required this.onTap});
+  const AcademicClassCard({
+    super.key,
+    required this.academicClass,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Dynamic data mapping
-    final String teacherName = session.description.isNotEmpty
-        ? session.description
-        : "لا يوجد معلم";
-    final String subjectName = session.courseTitle.isNotEmpty
-        ? session.courseTitle
-        : 'Subject Name';
-    final String levelName = session.title.isNotEmpty
-        ? session.title
-        : 'Level Name';
-
     return BounceIt(
       onPressed: onTap,
       child: Container(
@@ -50,7 +44,7 @@ class SessionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16.r),
               ),
               child: Icon(
-                Icons.menu_book_outlined,
+                Icons.class_outlined,
                 color: AppLightColors.primary,
                 size: 28.sp,
               ),
@@ -62,46 +56,70 @@ class SessionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppText(
-                    subjectName,
+                    academicClass.name,
                     style: font14w700.copyWith(color: const Color(0xFF222222)),
+                    maxLines: 3,
+                    textDirection: Bidi.hasAnyRtl(academicClass.name)
+                        ? TextDirection.rtl
+                        : TextDirection.ltr,
+                    textAlign: Bidi.hasAnyRtl(academicClass.name)
+                        ? TextAlign.right
+                        : TextAlign.left,
                   ),
                   SizedBox(height: 8.h),
+                  if (academicClass.educationSystem.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.account_balance_outlined,
+                          size: 16.sp,
+                          color: AppLightColors.primary,
+                        ),
+                        SizedBox(width: 6.w),
+                        Expanded(
+                          child: AppText(
+                            academicClass.educationSystem,
+                            style: font12w500.copyWith(
+                              color: const Color(0xFF555555),
+                            ),
+                            maxLines: 2,
+                            textDirection:
+                                Bidi.hasAnyRtl(academicClass.educationSystem)
+                                ? TextDirection.rtl
+                                : TextDirection.ltr,
+                            textAlign:
+                                Bidi.hasAnyRtl(academicClass.educationSystem)
+                                ? TextAlign.right
+                                : TextAlign.left,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 4.h),
+                  ],
                   Row(
                     children: [
                       Icon(
-                        Icons.person_outline,
+                        Icons.card_membership_outlined,
                         size: 16.sp,
                         color: AppLightColors.primary,
                       ),
                       SizedBox(width: 6.w),
-                      Expanded(
-                        child: AppText(
-                          teacherName,
-                          style: font12w500.copyWith(
-                            color: const Color(0xFF555555),
-                          ),
-                          maxLines: 3,
+                      AppText(
+                        'Certificate',
+                        style: font12w500.copyWith(
+                          color: const Color(0xFF555555),
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 4.h),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.school_outlined,
-                        size: 16.sp,
-                        color: AppLightColors.primary,
                       ),
                       SizedBox(width: 6.w),
-                      Expanded(
-                        child: AppText(
-                          levelName,
-                          style: font12w500.copyWith(
-                            color: const Color(0xFF555555),
-                          ),
-                          maxLines: 2,
-                        ),
+                      Icon(
+                        academicClass.certificate
+                            ? Icons.check_circle_outline
+                            : Icons.cancel_outlined,
+                        size: 16.sp,
+                        color: academicClass.certificate
+                            ? Colors.green
+                            : Colors.red,
                       ),
                     ],
                   ),

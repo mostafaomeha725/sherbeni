@@ -25,6 +25,8 @@ import 'package:qrattendance/features/atendance/domain/use_cases/scan_online_att
 import 'package:qrattendance/features/atendance/domain/use_cases/record_online_attendance_use_case.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/record_online_attendance/record_online_attendance_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/scan_qr_offline/scan_qr_ofline_cubit.dart';
+import 'package:qrattendance/features/atendance/domain/use_cases/get_academic_classes_use_case.dart';
+import 'package:qrattendance/features/atendance/presentation/cubit/academic_classes/academic_classes_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_classes/show_classes_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_sessions/show_sessions_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_student_data/show_student_data_cubit.dart';
@@ -100,6 +102,7 @@ class ServiceLocator {
 
     // UseCases
     sl.registerLazySingleton(() => GetSessionsUseCase(sl()));
+    sl.registerLazySingleton(() => GetAcademicClassesUseCase(sl()));
     sl.registerLazySingleton(() => GetStudentDataUseCase(sl()));
     sl.registerLazySingleton(() => SaveOfflineAttendanceUseCase(sl()));
     sl.registerLazySingleton(() => SyncOfflineDataUseCase(sl()));
@@ -115,6 +118,7 @@ class ServiceLocator {
     // Cubits (Factory)
     sl.registerFactory(() => ScanQrOflineCubit(sl(), sl()));
     sl.registerFactory(() => ShowSessionsCubit(sl()));
+    sl.registerFactory(() => AcademicClassesCubit(sl()));
     sl.registerFactory(() => ShowClassesCubit(sl()));
     sl.registerFactory(() => ShowStudentDataCubit(sl(), sl()));
     sl.registerFactory(() => RecordOnlineAttendanceCubit(sl()));

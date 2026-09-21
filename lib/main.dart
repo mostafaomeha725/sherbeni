@@ -7,6 +7,7 @@ import 'package:qrattendance/features/atendance/data/model/session_model.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:qrattendance/features/atendance/data/model/student_model.dart';
 import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
+import 'package:qrattendance/features/atendance/data/model/academic_class_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,12 +21,14 @@ void main() async {
   Hive.registerAdapter(SessionModelAdapter());
   Hive.registerAdapter(StudentModelAdapter());
   Hive.registerAdapter(PendingQuizGradeModelAdapter());
+  Hive.registerAdapter(AcademicClassModelAdapter());
 
   // Open Boxes
   await Hive.openBox<AttendanceModel>('studentSessions');
-  await Hive.openBox<SessionModel>('sessions');
+
   await Hive.openBox<StudentModel>('students');
   await Hive.openBox<PendingQuizGradeModel>('pendingQuizGrades');
+  await Hive.openBox<AcademicClassModel>('academicClasses');
 
   configLoading();
 

@@ -8,11 +8,16 @@ class GetSessionsUseCase {
 
   GetSessionsUseCase(this.repository);
 
-  Future<Either<Failure, List<SessionEntity>>> call({required String token}) {
-    return repository.fetchSessions(token: token);
+  Future<Either<Failure, List<SessionEntity>>> call({
+    required String token,
+    required String classId,
+  }) {
+    return repository.fetchSessions(token: token, classId: classId);
   }
 
-  Future<Either<Failure, List<SessionEntity>>> getCached() {
-    return repository.getCachedSessions();
+  Future<Either<Failure, List<SessionEntity>>> getCached({
+    required String classId,
+  }) {
+    return repository.getCachedSessions(classId: classId);
   }
 }

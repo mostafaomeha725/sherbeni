@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:qrattendance/core/error/failure.dart';
 import '../entities/session_entity.dart';
+import '../entities/academic_class_entity.dart';
 import '../entities/student_entity.dart';
 import '../entities/session_attendance_entity.dart';
 
@@ -25,16 +26,27 @@ abstract class AttendanceRepository {
 
   Future<Either<Failure, List<SessionEntity>>> fetchSessions({
     required String token,
+    required String classId,
   });
 
-  Future<Either<Failure, List<SessionEntity>>> getCachedSessions();
+  Future<Either<Failure, List<AcademicClassEntity>>> fetchAcademicClasses({
+    required String token,
+  });
+
+  Future<Either<Failure, List<AcademicClassEntity>>> getCachedAcademicClasses();
+
+  Future<Either<Failure, List<SessionEntity>>> getCachedSessions({
+    required String classId,
+  });
 
   Future<Either<Failure, List<SessionEntity>>> fetchClasses({
     required String subjectId,
+    required String classId,
   });
 
   Future<Either<Failure, List<SessionEntity>>> getCachedClasses({
     required String subjectId,
+    required String classId,
   });
 
   Future<Either<Failure, StudentEntity>> fetchStudentDataLocally({

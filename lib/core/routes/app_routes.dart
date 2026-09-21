@@ -40,6 +40,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:qrattendance/core/routes/auth_redirect.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
+import 'package:qrattendance/features/atendance/domain/entities/academic_class_entity.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/academic_classes_screen.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/attendance_screen.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/quiz_grades_screen.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/select_class_screen.dart';
@@ -64,18 +66,42 @@ final GoRouter appRouter = GoRouter(
     ),
 
     GoRoute(
-      path: Routes.attendanceScreen,
+      path: Routes.academicClassesScreen,
       builder: (context, state) {
         final token = state.extra as String;
-        return AttendanceScreen(token: token);
+        return AcademicClassesScreen(token: token);
+      },
+    ),
+
+    GoRoute(
+      path: Routes.attendanceScreen,
+      builder: (context, state) {
+        String token = '';
+        AcademicClassEntity? academicClass;
+
+        if (state.extra is String) {
+          token = state.extra as String;
+        } else if (state.extra is Map) {
+          final map = state.extra as Map;
+          token = map['token'] as String? ?? '';
+          academicClass = map['academicClass'] as AcademicClassEntity?;
+        }
+
+        if (academicClass == null) {
+          return AcademicClassesScreen(token: token);
+        }
+
+        return AttendanceScreen(token: token, academicClass: academicClass);
       },
     ),
 
     GoRoute(
       path: Routes.selectClassScreen,
       builder: (context, state) {
-        final subject = state.extra as SessionEntity;
-        return SelectClassScreen(subject: subject);
+        final extra = state.extra as Map<String, dynamic>;
+        final subject = extra['subject'] as SessionEntity;
+        final classId = extra['classId'] as String;
+        return SelectClassScreen(subject: subject, classId: classId);
       },
     ),
 

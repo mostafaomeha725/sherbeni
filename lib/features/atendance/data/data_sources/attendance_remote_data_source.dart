@@ -1,13 +1,15 @@
 import 'package:qrattendance/core/network/network_service.dart';
 import 'package:qrattendance/core/network/endpoints.dart';
 import 'package:qrattendance/features/atendance/data/model/session_model.dart';
+import 'package:qrattendance/features/atendance/data/model/academic_class_model.dart';
 
 abstract class AttendanceRemoteDataSource {
   Future<Map<String, dynamic>> syncBatch(Map<String, dynamic> data);
   Future<Map<String, dynamic>> scanOnline(String qrCode, String sessionId);
   Future<Map<String, dynamic>> recordAttendance(Map<String, dynamic> data);
-  Future<List<SessionModel>> getSessions();
-  Future<List<SessionModel>> getClasses(String subjectId);
+  Future<List<SessionModel>> getSessions(String classId);
+  Future<List<SessionModel>> getClasses(String subjectId, String classId);
+  Future<List<AcademicClassModel>> getAcademicClasses(String token);
   Future<Map<String, dynamic>> getSessionAttendances(
     String sessionId,
     int page,
@@ -93,9 +95,10 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   }
 
   @override
-  Future<List<SessionModel>> getSessions() async {
+  Future<List<SessionModel>> getSessions(String classId) async {
     final resultEither = await networkService.getData(
       endPoint: EndPoints.mobileSubjects,
+      queryParameters: {'class_id': classId},
     );
 
     return resultEither.fold((failure) => throw failure, (response) {
@@ -112,10 +115,13 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   }
 
   @override
-  Future<List<SessionModel>> getClasses(String subjectId) async {
+  Future<List<SessionModel>> getClasses(
+    String subjectId,
+    String classId,
+  ) async {
     final resultEither = await networkService.getData(
       endPoint: EndPoints.mobileSessions,
-      queryParameters: {'subject_id': subjectId},
+      queryParameters: {'subject_id': subjectId, 'class_id': classId},
     );
 
     return resultEither.fold((failure) => throw failure, (response) {
@@ -228,6 +234,25 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
         return response;
       } else {
         throw Exception(response['message'] ?? 'فشل مزامنة الدرجات');
+      }
+    });
+  }
+
+  @override
+  Future<List<AcademicClassModel>> getAcademicClasses(String token) async {
+    final resultEither = await networkService.getData(
+      endPoint: EndPoints.mobileClassesDropdownList,
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true || response['statusCode'] == 200) {
+        final data = response['data'] as List?;
+        if (data != null) {
+          return data.map((e) => AcademicClassModel.fromJson(e)).toList();
+        }
+        return [];
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب الصفوف الدراسية');
       }
     });
   }

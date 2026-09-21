@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:qrattendance/core/error/failure.dart';
 import '../../domain/entities/session_entity.dart';
+import '../../domain/entities/academic_class_entity.dart';
 import '../../domain/entities/student_entity.dart';
 import '../../domain/entities/session_attendance_entity.dart';
 import '../../domain/repositories/attendance_repository.dart';
@@ -357,27 +358,29 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<Either<Failure, List<SessionEntity>>> fetchClasses({
     required String subjectId,
+    required String classId,
   }) async {
     try {
-      final remoteClasses = await remoteDataSource.getClasses(subjectId);
+      final remoteClasses = await remoteDataSource.getClasses(
+        subjectId,
+        classId,
+      );
       final entities = remoteClasses.map((e) => e.toEntity()).toList();
-      await localDataSource.saveClasses(subjectId, remoteClasses);
+      await localDataSource.saveClasses(subjectId, classId, remoteClasses);
       return Right(entities);
     } catch (remoteError) {
       try {
-        final localClasses = await localDataSource.getOfflineClasses(subjectId);
-        if (localClasses.isNotEmpty) {
+        final localClasses = await localDataSource.getOfflineClasses(
+          subjectId,
+          classId,
+        );
+        if (localClasses != null) {
           final entities = localClasses.map((e) => e.toEntity()).toList();
           return Right(entities);
         } else {
           final isOffline = await _isOffline();
           if (isOffline) {
-            return const Left(
-              CacheFailure(
-                message:
-                    'لا توجد بيانات مخزنة لهذه المادة حاليًا، يرجى الاتصال بالإنترنت أولًا.',
-              ),
-            );
+            return const Left(CacheFailure(message: 'OFFLINE_FALLBACK'));
           }
           if (remoteError is Failure) {
             return Left(remoteError);
@@ -402,9 +405,16 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<Either<Failure, List<SessionEntity>>> getCachedClasses({
     required String subjectId,
+    required String classId,
   }) async {
     try {
-      final localClasses = await localDataSource.getOfflineClasses(subjectId);
+      final localClasses = await localDataSource.getOfflineClasses(
+        subjectId,
+        classId,
+      );
+      if (localClasses == null) {
+        return const Left(CacheFailure(message: 'NO_CACHE_EXISTS'));
+      }
       final entities = localClasses.map((e) => e.toEntity()).toList();
       return Right(entities);
     } catch (e) {
@@ -415,15 +425,16 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<Either<Failure, List<SessionEntity>>> fetchSessions({
     required String token,
+    required String classId,
   }) async {
     try {
-      final remoteSessions = await remoteDataSource.getSessions();
-      await localDataSource.saveSessions(remoteSessions);
+      final remoteSessions = await remoteDataSource.getSessions(classId);
+      await localDataSource.saveSessions(classId, remoteSessions);
       final entities = remoteSessions.map((e) => e.toEntity()).toList();
       return Right(entities);
     } catch (remoteError) {
       try {
-        final localSessions = await localDataSource.getOfflineSessions();
+        final localSessions = await localDataSource.getOfflineSessions(classId);
         if (localSessions.isNotEmpty) {
           final entities = localSessions.map((e) => e.toEntity()).toList();
           return Right(entities);
@@ -453,9 +464,61 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
-  Future<Either<Failure, List<SessionEntity>>> getCachedSessions() async {
+  Future<Either<Failure, List<AcademicClassEntity>>> fetchAcademicClasses({
+    required String token,
+  }) async {
     try {
-      final localSessions = await localDataSource.getOfflineSessions();
+      final remoteClasses = await remoteDataSource.getAcademicClasses(token);
+      await localDataSource.saveAcademicClasses(remoteClasses);
+      final entities = remoteClasses.map((e) => e.toEntity()).toList();
+      return Right(entities);
+    } catch (remoteError) {
+      try {
+        final localClasses = await localDataSource.getOfflineAcademicClasses();
+        if (localClasses.isNotEmpty) {
+          final entities = localClasses.map((e) => e.toEntity()).toList();
+          return Right(entities);
+        } else {
+          final isOffline = await _isOffline();
+          if (isOffline) {
+            return const Left(CacheFailure(message: 'OFFLINE_FALLBACK'));
+          }
+          if (remoteError is Failure) {
+            return Left(remoteError);
+          }
+          return Left(
+            ServerFailure(
+              message: remoteError.toString().replaceAll('Exception: ', ''),
+            ),
+          );
+        }
+      } catch (e) {
+        if (e is Failure) {
+          return Left(e);
+        }
+        return Left(CacheFailure(message: e.toString()));
+      }
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<AcademicClassEntity>>>
+  getCachedAcademicClasses() async {
+    try {
+      final localClasses = await localDataSource.getOfflineAcademicClasses();
+      final entities = localClasses.map((e) => e.toEntity()).toList();
+      return Right(entities);
+    } catch (e) {
+      return Left(CacheFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<SessionEntity>>> getCachedSessions({
+    required String classId,
+  }) async {
+    try {
+      final localSessions = await localDataSource.getOfflineSessions(classId);
       final entities = localSessions.map((e) => e.toEntity()).toList();
       return Right(entities);
     } catch (e) {

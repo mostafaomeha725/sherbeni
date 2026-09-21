@@ -5,8 +5,13 @@ import 'package:qrattendance/core/widgets/bouncing_widgets.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
+  final bool showBackButton;
 
-  const CustomAppBar({super.key, required this.title});
+  const CustomAppBar({
+    super.key,
+    required this.title,
+    this.showBackButton = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,27 +21,29 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 0,
       scrolledUnderElevation: 0.0,
       backgroundColor: Colors.transparent,
-      leading: Padding(
-        padding: EdgeInsets.only(left: 16.w, top: 8.h, bottom: 8.h),
-        child: BounceIt(
-          onPressed: () => context.pop(),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFF0F0F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 4.r,
-                  offset: Offset(0, 2.h),
+      leading: showBackButton
+          ? Padding(
+              padding: EdgeInsets.only(left: 16.w, top: 8.h, bottom: 8.h),
+              child: BounceIt(
+                onPressed: () => context.pop(),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFF0F0F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 4.r,
+                        offset: Offset(0, 2.h),
+                      ),
+                    ],
+                  ),
+                  child: Icon(Icons.arrow_back, size: 20.sp),
                 ),
-              ],
-            ),
-            child: Icon(Icons.arrow_back, size: 20.sp),
-          ),
-        ),
-      ),
+              ),
+            )
+          : null,
       title: Text(
         title,
         style: TextStyle(

@@ -5,7 +5,14 @@ import 'package:qrattendance/core/theme/styles.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 
 class AttendanceHeader extends StatelessWidget {
-  const AttendanceHeader({super.key});
+  final String title;
+  final String subtitle;
+
+  const AttendanceHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +33,12 @@ class AttendanceHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AppText(
-                'Select Subject',
+                title,
                 style: font16w700.copyWith(color: const Color(0xFF222222)),
               ),
               SizedBox(height: 4.h),
               AppText(
-                'Select a subject for attendance.',
+                subtitle,
                 style: font10w400.copyWith(color: const Color(0xFF777777)),
                 maxLines: 1,
               ),

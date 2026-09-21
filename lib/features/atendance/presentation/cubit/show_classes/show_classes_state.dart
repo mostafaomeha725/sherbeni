@@ -15,3 +15,5 @@ class ShowClassesFailure extends ShowClassesState {
   final String message;
   ShowClassesFailure(this.message);
 }
+
+class ShowClassesOfflineFallback extends ShowClassesState {}

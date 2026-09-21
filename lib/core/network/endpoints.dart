@@ -8,6 +8,8 @@ class EndPoints {
   static const String login = 'Authentication/login';
   static const String mobileLogin = 'api/v1/mobile/login';
   static const String mobileSubjects = 'api/v1/mobile/subjects';
+  static const String mobileClassesDropdownList =
+      'api/v1/mobile/classes/dropdown/list';
   static const String mobileSessions = 'api/v1/mobile/sessions';
   static String getSessionQuizzes(String sessionId) =>
       'api/v1/mobile/sessions/$sessionId/quizzes';

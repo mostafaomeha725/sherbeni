@@ -2,6 +2,7 @@ import 'package:hive/hive.dart';
 import '../model/attendance_model.dart';
 import '../model/student_model.dart';
 import '../model/session_model.dart';
+import '../model/academic_class_model.dart';
 import '../model/pending_quiz_grade_model.dart';
 
 abstract class AttendanceLocalDataSource {
@@ -14,11 +15,20 @@ abstract class AttendanceLocalDataSource {
   );
   Future<StudentModel?> getStudentByUid(String uid);
 
-  Future<void> saveSessions(List<SessionModel> sessions);
-  Future<List<SessionModel>> getOfflineSessions();
+  Future<void> saveSessions(String classId, List<SessionModel> sessions);
+  Future<List<SessionModel>> getOfflineSessions(String classId);
 
-  Future<void> saveClasses(String subjectId, List<SessionModel> classes);
-  Future<List<SessionModel>> getOfflineClasses(String subjectId);
+  Future<void> saveClasses(
+    String subjectId,
+    String classId,
+    List<SessionModel> classes,
+  );
+  Future<List<SessionModel>?> getOfflineClasses(
+    String subjectId,
+    String classId,
+  );
+  Future<void> saveAcademicClasses(List<AcademicClassModel> classes);
+  Future<List<AcademicClassModel>> getOfflineAcademicClasses();
 
   Future<void> saveSessionAttendancesCache(String sessionId, String jsonData);
   Future<String?> getSessionAttendancesCache(String sessionId);
@@ -122,27 +132,33 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   }
 
   @override
-  Future<void> saveSessions(List<SessionModel> sessions) async {
-    final box = Hive.isBoxOpen('sessions')
-        ? Hive.box<SessionModel>('sessions')
-        : await Hive.openBox<SessionModel>('sessions');
+  Future<void> saveSessions(String classId, List<SessionModel> sessions) async {
+    final boxName = 'sessions_$classId';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<SessionModel>(boxName)
+        : await Hive.openBox<SessionModel>(boxName);
 
     await box.clear();
     await box.addAll(sessions);
   }
 
   @override
-  Future<List<SessionModel>> getOfflineSessions() async {
-    final box = Hive.isBoxOpen('sessions')
-        ? Hive.box<SessionModel>('sessions')
-        : await Hive.openBox<SessionModel>('sessions');
+  Future<List<SessionModel>> getOfflineSessions(String classId) async {
+    final boxName = 'sessions_$classId';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<SessionModel>(boxName)
+        : await Hive.openBox<SessionModel>(boxName);
 
     return box.values.toList();
   }
 
   @override
-  Future<void> saveClasses(String subjectId, List<SessionModel> classes) async {
-    final boxName = 'classes_$subjectId';
+  Future<void> saveClasses(
+    String subjectId,
+    String classId,
+    List<SessionModel> classes,
+  ) async {
+    final boxName = 'classes_${classId}_$subjectId';
     final box = Hive.isBoxOpen(boxName)
         ? Hive.box<SessionModel>(boxName)
         : await Hive.openBox<SessionModel>(boxName);
@@ -152,8 +168,15 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   }
 
   @override
-  Future<List<SessionModel>> getOfflineClasses(String subjectId) async {
-    final boxName = 'classes_$subjectId';
+  Future<List<SessionModel>?> getOfflineClasses(
+    String subjectId,
+    String classId,
+  ) async {
+    final boxName = 'classes_${classId}_$subjectId';
+    if (!Hive.isBoxOpen(boxName) && !await Hive.boxExists(boxName)) {
+      return null;
+    }
+
     final box = Hive.isBoxOpen(boxName)
         ? Hive.box<SessionModel>(boxName)
         : await Hive.openBox<SessionModel>(boxName);
@@ -239,5 +262,24 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
         : await Hive.openBox<String>(boxName);
 
     return box.isNotEmpty ? box.getAt(0) : null;
+  }
+
+  @override
+  Future<void> saveAcademicClasses(List<AcademicClassModel> classes) async {
+    final box = Hive.isBoxOpen('academicClasses')
+        ? Hive.box<AcademicClassModel>('academicClasses')
+        : await Hive.openBox<AcademicClassModel>('academicClasses');
+
+    await box.clear();
+    await box.addAll(classes);
+  }
+
+  @override
+  Future<List<AcademicClassModel>> getOfflineAcademicClasses() async {
+    final box = Hive.isBoxOpen('academicClasses')
+        ? Hive.box<AcademicClassModel>('academicClasses')
+        : await Hive.openBox<AcademicClassModel>('academicClasses');
+
+    return box.values.toList();
   }
 }
