@@ -40,6 +40,8 @@ import 'package:qrattendance/features/atendance/presentation/cubit/session_stude
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
 
+import 'package:qrattendance/core/services/global_sync_coordinator.dart';
+
 final sl = GetIt.instance;
 
 class ServiceLocator {
@@ -53,6 +55,12 @@ class ServiceLocator {
     await _initStorage();
     _initDio();
     sl.registerLazySingleton(() => Connectivity());
+    sl.registerLazySingleton(
+      () => GlobalSyncCoordinator(
+        syncOfflineDataUseCase: sl(),
+        connectivity: sl(),
+      ),
+    );
   }
 
   Future<void> _initStorage() async {

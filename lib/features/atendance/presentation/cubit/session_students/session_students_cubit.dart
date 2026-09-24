@@ -12,6 +12,7 @@ import 'package:qrattendance/core/models/pagination_model.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_attendance_entity.dart';
 import 'package:qrattendance/features/atendance/data/model/session_attendance_model.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_session_attendances_use_case.dart';
+import 'package:qrattendance/core/network/network_service.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_offline_session_attendances_use_case.dart';
 
 part 'session_students_state.dart';
@@ -44,22 +45,30 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
     }
 
     final connectivityResult = await connectivity.checkConnectivity();
-    final isOffline = connectivityResult.contains(ConnectivityResult.none);
+    bool isOffline = connectivityResult.contains(ConnectivityResult.none);
+    if (!isOffline) {
+      isOffline = !(await NetworkService.hasInternetReachability());
+    }
 
     if (isOffline) {
       // Offline mode
       final result = await getOfflineSessionAttendancesUseCase.call(sessionId);
-      result.fold((failure) => emit(SessionStudentsFailure(failure.message)), (
-        attendances,
-      ) {
-        emit(
-          SessionStudentsLoaded(
-            attendances: attendances,
-            pagination: null, // No pagination offline
-            isOffline: true,
-          ),
-        );
-      });
+      result.fold(
+        (failure) {
+          if (isClosed) return;
+          emit(SessionStudentsFailure(failure.message));
+        },
+        (attendances) {
+          if (isClosed) return;
+          emit(
+            SessionStudentsLoaded(
+              attendances: attendances,
+              pagination: null, // No pagination offline
+              isOffline: true,
+            ),
+          );
+        },
+      );
     } else {
       // Online mode
       final result = await getSessionAttendancesUseCase.call(
@@ -67,38 +76,43 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
         _currentPage,
         _limit,
       );
-      result.fold((failure) => emit(SessionStudentsFailure(failure.message)), (
-        data,
-      ) {
-        final List dynamicList = data['data']['attendances'] ?? [];
-        final newAttendances = dynamicList
-            .map((e) => SessionAttendanceModel.fromJson(e))
-            .toList();
+      result.fold(
+        (failure) {
+          if (isClosed) return;
+          emit(SessionStudentsFailure(failure.message));
+        },
+        (data) {
+          if (isClosed) return;
+          final List dynamicList = data['data']['attendances'] ?? [];
+          final newAttendances = dynamicList
+              .map((e) => SessionAttendanceModel.fromJson(e))
+              .toList();
 
-        PaginationModel? pagination;
-        if (data['pagination'] != null) {
-          pagination = PaginationModel.fromJson(data['pagination']);
-        }
+          PaginationModel? pagination;
+          if (data['pagination'] != null) {
+            pagination = PaginationModel.fromJson(data['pagination']);
+          }
 
-        if (_currentPage == 1) {
-          emit(
-            SessionStudentsLoaded(
-              attendances: newAttendances,
-              pagination: pagination,
-            ),
-          );
-        } else {
-          if (state is SessionStudentsLoaded) {
-            final currentList = (state as SessionStudentsLoaded).attendances;
+          if (_currentPage == 1) {
             emit(
               SessionStudentsLoaded(
-                attendances: [...currentList, ...newAttendances],
+                attendances: newAttendances,
                 pagination: pagination,
               ),
             );
+          } else {
+            if (state is SessionStudentsLoaded) {
+              final currentList = (state as SessionStudentsLoaded).attendances;
+              emit(
+                SessionStudentsLoaded(
+                  attendances: [...currentList, ...newAttendances],
+                  pagination: pagination,
+                ),
+              );
+            }
           }
-        }
-      });
+        },
+      );
     }
   }
 
@@ -125,7 +139,10 @@ class SessionStudentsCubit extends Cubit<SessionStudentsState> {
       List<SessionAttendanceEntity> allAttendances = [];
 
       final isOfflineResult = await connectivity.checkConnectivity();
-      final isOffline = isOfflineResult.contains(ConnectivityResult.none);
+      bool isOffline = isOfflineResult.contains(ConnectivityResult.none);
+      if (!isOffline) {
+        isOffline = !(await NetworkService.hasInternetReachability());
+      }
 
       if (isOffline) {
         final result = await getOfflineSessionAttendancesUseCase.call(

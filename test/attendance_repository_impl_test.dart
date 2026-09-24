@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:qrattendance/features/atendance/data/data_sources/attendance_local_data_source.dart';
@@ -131,6 +132,33 @@ class FakeAttendanceRemoteDataSource implements AttendanceRemoteDataSource {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class FakeSocket implements Socket {
+  @override
+  void destroy() {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class MockIOOverrides extends IOOverrides {
+  final FakeConnectivity connectivity;
+  MockIOOverrides(this.connectivity);
+
+  @override
+  Future<Socket> socketConnect(
+    host,
+    int port, {
+    sourceAddress,
+    int sourcePort = 0,
+    Duration? timeout,
+  }) async {
+    if (connectivity.isConnectedValue) {
+      return FakeSocket();
+    }
+    throw const SocketException('Simulated network failure');
+  }
+}
+
 void main() {
   late AttendanceRepositoryImpl repository;
   late FakeAttendanceLocalDataSource mockLocalDataSource;
@@ -138,6 +166,8 @@ void main() {
   late FakeConnectivity mockConnectivity;
 
   setUp(() {
+    mockConnectivity = FakeConnectivity();
+    IOOverrides.global = MockIOOverrides(mockConnectivity);
     mockLocalDataSource = FakeAttendanceLocalDataSource();
     mockRemoteDataSource = FakeAttendanceRemoteDataSource();
     mockConnectivity = FakeConnectivity();

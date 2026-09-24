@@ -9,6 +9,8 @@ import 'package:qrattendance/features/atendance/data/model/student_model.dart';
 import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
 import 'package:qrattendance/features/atendance/data/model/academic_class_model.dart';
 
+import 'package:qrattendance/core/services/global_sync_coordinator.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -29,6 +31,9 @@ void main() async {
   await Hive.openBox<StudentModel>('students');
   await Hive.openBox<PendingQuizGradeModel>('pendingQuizGrades');
   await Hive.openBox<AcademicClassModel>('academicClasses');
+
+  // Initialize Global Sync
+  sl<GlobalSyncCoordinator>().init();
 
   configLoading();
 

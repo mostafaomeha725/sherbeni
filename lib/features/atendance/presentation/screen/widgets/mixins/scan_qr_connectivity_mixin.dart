@@ -6,6 +6,8 @@ import 'package:qrattendance/features/atendance/presentation/cubit/scan_qr_offli
 import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr_screen_body.dart';
 import 'scan_qr_base_mixin.dart';
 
+import 'package:qrattendance/core/network/network_service.dart';
+
 mixin ScanQrConnectivityMixin on State<ScanQrScreenBody>, ScanQrBaseMixin {
   bool hasInternet = false;
   bool isSyncing = false;
@@ -19,14 +21,17 @@ mixin ScanQrConnectivityMixin on State<ScanQrScreenBody>, ScanQrBaseMixin {
   Future<void> _checkConnectivity() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      setState(() {
-        hasInternet =
-            connectivityResult.contains(ConnectivityResult.wifi) ||
-            connectivityResult.contains(ConnectivityResult.mobile);
-      });
-      if (hasInternet && !isSyncing) {
-        syncOfflineData();
+      bool isConnected =
+          connectivityResult.contains(ConnectivityResult.wifi) ||
+          connectivityResult.contains(ConnectivityResult.mobile);
+
+      if (isConnected) {
+        isConnected = await NetworkService.hasInternetReachability();
       }
+
+      setState(() {
+        hasInternet = isConnected;
+      });
     } catch (e) {
       debugPrint("Error checking connectivity: $e");
     }
@@ -35,16 +40,20 @@ mixin ScanQrConnectivityMixin on State<ScanQrScreenBody>, ScanQrBaseMixin {
   void _subscribeToConnectivityChanges() {
     connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> result,
-    ) {
-      final newHasInternet =
+    ) async {
+      bool newHasInternet =
           result.contains(ConnectivityResult.wifi) ||
           result.contains(ConnectivityResult.mobile);
+
+      if (newHasInternet) {
+        newHasInternet = await NetworkService.hasInternetReachability();
+      }
+
       if (newHasInternet != hasInternet) {
-        setState(() {
-          hasInternet = newHasInternet;
-        });
-        if (hasInternet && !isSyncing) {
-          syncOfflineData();
+        if (mounted) {
+          setState(() {
+            hasInternet = newHasInternet;
+          });
         }
       }
     });

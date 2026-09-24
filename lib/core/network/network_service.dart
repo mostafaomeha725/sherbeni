@@ -64,6 +64,25 @@ class NetworkService {
     dio.options.headers.remove('Authorization');
   }
 
+  static Future<bool> hasInternetReachability() async {
+    try {
+      final uri = Uri.parse(AppStrings.baseUrl);
+      final host = uri.host;
+      // Default to 443 for HTTPS, 80 for HTTP if port is not specified
+      final port = uri.hasPort ? uri.port : (uri.scheme == 'https' ? 443 : 80);
+
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 3),
+      );
+      socket.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<Either<Failure, dynamic>> postData({
     required String endPoint,
     Map<String, dynamic>? data,

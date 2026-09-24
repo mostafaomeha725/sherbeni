@@ -16,6 +16,8 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../../../core/utils/validators.dart';
 
+import 'package:qrattendance/core/network/network_service.dart';
+
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceLocalDataSource localDataSource;
   final AttendanceRemoteDataSource remoteDataSource;
@@ -29,7 +31,13 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   Future<bool> _isOffline() async {
     final connectivityResult = await connectivity.checkConnectivity();
-    return connectivityResult.contains(ConnectivityResult.none);
+    final hasInterface =
+        connectivityResult.contains(ConnectivityResult.wifi) ||
+        connectivityResult.contains(ConnectivityResult.mobile);
+    if (!hasInterface) return true;
+
+    final hasInternet = await NetworkService.hasInternetReachability();
+    return !hasInternet;
   }
 
   @override
@@ -101,15 +109,8 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       if (localData.isNotEmpty) {
         List<Map<String, dynamic>> attendanceList = [];
         final Set<String> uniqueKeys = {};
-        final List<int> invalidKeysToDelete = [];
 
         for (var entry in localData) {
-          if (entry.uid.length > 36) {
-            if (entry.key != null) {
-              invalidKeysToDelete.add(entry.key as int);
-            }
-            continue;
-          }
           final key = '${entry.uid}_${entry.sessionId}';
           if (uniqueKeys.contains(key)) continue;
           uniqueKeys.add(key);
@@ -124,10 +125,6 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
             "date": date,
             "time": time,
           });
-        }
-
-        if (invalidKeysToDelete.isNotEmpty) {
-          await localDataSource.deleteAttendances(invalidKeysToDelete);
         }
 
         if (attendanceList.isNotEmpty) {

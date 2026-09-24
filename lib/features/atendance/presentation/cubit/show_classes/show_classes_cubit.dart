@@ -21,6 +21,7 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
         // No valid cache (e.g. NO_CACHE_EXISTS)
       },
       (classes) {
+        if (isClosed) return;
         // Cache exists! It might be empty, but that's a valid state
         hasCache = true;
         emit(ShowClassesSuccess(classes));
@@ -38,14 +39,21 @@ class ShowClassesCubit extends Cubit<ShowClassesState> {
       classId: classId,
     );
 
-    result.fold((failure) {
-      if (!hasCache) {
-        if (failure.message == 'OFFLINE_FALLBACK') {
-          emit(ShowClassesOfflineFallback());
-        } else {
-          emit(ShowClassesFailure(failure.message));
+    result.fold(
+      (failure) {
+        if (isClosed) return;
+        if (!hasCache) {
+          if (failure.message == 'OFFLINE_FALLBACK') {
+            emit(ShowClassesOfflineFallback());
+          } else {
+            emit(ShowClassesFailure(failure.message));
+          }
         }
-      }
-    }, (classes) => emit(ShowClassesSuccess(classes)));
+      },
+      (classes) {
+        if (isClosed) return;
+        emit(ShowClassesSuccess(classes));
+      },
+    );
   }
 }

@@ -15,6 +15,7 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
     bool hasCache = false;
     final cacheResult = await getSessionsUseCase.getCached(classId: classId);
     cacheResult.fold((_) {}, (sessions) {
+      if (isClosed) return;
       if (sessions.isNotEmpty) {
         hasCache = true;
         emit(ShowSessionsSuccess(sessions));
@@ -32,15 +33,22 @@ class ShowSessionsCubit extends Cubit<ShowSessionsState> {
       classId: classId,
     );
 
-    result.fold((failure) {
-      // Only show failure if we don't already have cached data on screen
-      if (!hasCache) {
-        if (failure.message == 'OFFLINE_FALLBACK') {
-          emit(ShowSessionsOfflineFallback());
-        } else {
-          emit(ShowSessionsFailure(failure.message));
+    result.fold(
+      (failure) {
+        if (isClosed) return;
+        // Only show failure if we don't already have cached data on screen
+        if (!hasCache) {
+          if (failure.message == 'OFFLINE_FALLBACK') {
+            emit(ShowSessionsOfflineFallback());
+          } else {
+            emit(ShowSessionsFailure(failure.message));
+          }
         }
-      }
-    }, (sessions) => emit(ShowSessionsSuccess(sessions)));
+      },
+      (sessions) {
+        if (isClosed) return;
+        emit(ShowSessionsSuccess(sessions));
+      },
+    );
   }
 }
