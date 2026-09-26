@@ -35,12 +35,17 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             .map((e) => QuizStudentModel.fromJson(e))
             .toList();
 
+        final quizName = data['data']['quiz_name']?.toString();
+        final maxScore = data['data']['max_score'] as num?;
+
         emit(
           QuizGradesLoaded(
             students: students,
             pagination: null,
             isOffline:
                 true, // we assume it might be offline, will update if online success
+            quizName: quizName,
+            maxScore: maxScore,
           ),
         );
       }
@@ -60,11 +65,16 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             .map((e) => QuizStudentModel.fromJson(e))
             .toList();
 
+        final quizName = data['data']['quiz_name']?.toString();
+        final maxScore = data['data']['max_score'] as num?;
+
         emit(
           QuizGradesLoaded(
             students: newStudents,
             pagination: null, // No pagination in new API
             isOffline: false,
+            quizName: quizName,
+            maxScore: maxScore,
           ),
         );
       },
@@ -97,6 +107,9 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             .map((e) => QuizStudentModel.fromJson(e))
             .toList();
 
+        final quizName = data['data']['quiz_name']?.toString();
+        final maxScore = data['data']['max_score'] as num?;
+
         emit(
           QuizGradesLoaded(
             students: students,
@@ -104,6 +117,8 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             currentSearch: query,
             currentFilter: currentState.currentFilter,
             isOffline: false,
+            quizName: quizName,
+            maxScore: maxScore,
           ),
         );
       },
@@ -132,6 +147,9 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             .map((e) => QuizStudentModel.fromJson(e))
             .toList();
 
+        final quizName = data['data']['quiz_name']?.toString();
+        final maxScore = data['data']['max_score'] as num?;
+
         emit(
           QuizGradesLoaded(
             students: students,
@@ -139,6 +157,8 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
             currentSearch: currentState.currentSearch,
             currentFilter: filter,
             isOffline: false,
+            quizName: quizName,
+            maxScore: maxScore,
           ),
         );
       },

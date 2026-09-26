@@ -332,7 +332,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
         name: data['studentName'] ?? 'طالب مجهول',
         email: data['email'] ?? '',
         studentPhone: data['phone']?.toString() ?? '',
-        parentPhone: '',
+        parentPhone: data['parentPhoneNumber']?.toString() ?? '',
         studentType: '',
         isApproved:
             data['status'] == 'approved' ||

@@ -119,7 +119,9 @@ class SelectClassActionSheet extends StatelessWidget {
                 _buildActionCard(
                   context: context,
                   title: 'Scan Attendance',
-                  subtitle: 'Scan student QR codes',
+                  subtitle: quizzes.isNotEmpty
+                      ? 'Scan student QR codes (Quiz: ${quizzes.first['quiz_name'] ?? quizzes.first['name'] ?? 'Active'})'
+                      : 'Scan student QR codes',
                   icon: Icons.qr_code_scanner_rounded,
                   iconColor: const Color(0xFF3B82F6), // Blue theme for scanning
                   bgColor: const Color(0xFFEFF6FF),
@@ -133,14 +135,16 @@ class SelectClassActionSheet extends StatelessWidget {
                 SizedBox(height: 16.h),
                 if (quizzes.isNotEmpty)
                   ...quizzes.map((quiz) {
-                    final quizName = quiz['name'] ?? 'Quiz';
+                    final quizName =
+                        quiz['quiz_name'] ?? quiz['name'] ?? 'Quiz';
                     final quizTemplateId =
                         quiz['quiz_template_id']?.toString() ?? '';
                     return Padding(
                       padding: EdgeInsets.only(bottom: 16.h),
                       child: _buildActionCard(
                         context: context,
-                        title: 'Quiz: $quizName',
+                        title:
+                            quizName, // Replaced 'Quiz: $quizName' with just quizName
                         subtitle: 'Enter or update student grades',
                         icon: Icons.grading_rounded,
                         iconColor: const Color(0xFF10B981),

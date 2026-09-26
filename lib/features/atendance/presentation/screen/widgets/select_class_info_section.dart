@@ -42,7 +42,7 @@ class SelectClassInfoSection extends StatelessWidget {
                 child: AppText(
                   sessionName,
                   style: font12w500.copyWith(color: const Color(0xFF555555)),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

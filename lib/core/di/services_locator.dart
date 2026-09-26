@@ -58,6 +58,7 @@ class ServiceLocator {
     sl.registerLazySingleton(
       () => GlobalSyncCoordinator(
         syncOfflineDataUseCase: sl(),
+        localDataSource: sl(),
         connectivity: sl(),
       ),
     );

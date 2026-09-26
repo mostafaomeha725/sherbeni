@@ -23,6 +23,9 @@ class QuizGradesLoaded extends QuizGradesState {
   final String? actionMessage;
   final bool? isActionSuccess;
 
+  final String? quizName;
+  final num? maxScore;
+
   const QuizGradesLoaded({
     required this.students,
     this.pagination,
@@ -32,6 +35,8 @@ class QuizGradesLoaded extends QuizGradesState {
     this.isOffline = false,
     this.actionMessage,
     this.isActionSuccess,
+    this.quizName,
+    this.maxScore,
   });
 
   QuizGradesLoaded copyWith({
@@ -44,6 +49,8 @@ class QuizGradesLoaded extends QuizGradesState {
     String? actionMessage,
     bool? isActionSuccess,
     bool clearActionMessage = false,
+    String? quizName,
+    num? maxScore,
   }) {
     return QuizGradesLoaded(
       students: students ?? this.students,
@@ -52,6 +59,8 @@ class QuizGradesLoaded extends QuizGradesState {
       currentFilter: currentFilter ?? this.currentFilter,
       currentSearch: currentSearch ?? this.currentSearch,
       isOffline: isOffline ?? this.isOffline,
+      quizName: quizName ?? this.quizName,
+      maxScore: maxScore ?? this.maxScore,
       actionMessage: clearActionMessage
           ? null
           : (actionMessage ?? this.actionMessage),
@@ -71,6 +80,8 @@ class QuizGradesLoaded extends QuizGradesState {
     isOffline,
     actionMessage,
     isActionSuccess,
+    quizName,
+    maxScore,
   ];
 }
 

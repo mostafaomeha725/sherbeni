@@ -1,8 +1,7 @@
 class AppStrings {
   //   static const String baseUrl = 'https://back.sherbeniacademy.com/';
 
-  // static const String baseUrl =
-  //     'https://back.sherbeniacademy.com/';
+  //   static const String baseUrl = 'https://back.sherbeniacademy.com/';
 
   static const String baseUrl =
       'https://sherbeni-academy-back.shiftup-solutions.com/';

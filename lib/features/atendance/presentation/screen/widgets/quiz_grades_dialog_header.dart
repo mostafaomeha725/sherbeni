@@ -6,7 +6,9 @@ import 'package:qrattendance/core/widgets/bouncing_widgets.dart';
 import 'package:qrattendance/core/widgets/custom_text.dart';
 
 class QuizGradesDialogHeader extends StatelessWidget {
-  const QuizGradesDialogHeader({super.key});
+  final String? title;
+
+  const QuizGradesDialogHeader({super.key, this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +55,7 @@ class QuizGradesDialogHeader extends StatelessWidget {
           ),
           SizedBox(height: 12.h),
           AppText(
-            'Grade Student',
+            title ?? 'Grade Student',
             style: font18w700.copyWith(color: Colors.white),
             textAlign: TextAlign.center,
             alignment: AlignmentDirectional.center,

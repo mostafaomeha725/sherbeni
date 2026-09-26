@@ -12,9 +12,17 @@ import 'quiz_grades_dialog_student_info.dart';
 
 class QuizGradesDialog extends StatefulWidget {
   final StudentEntity student;
-  final int? currentGrade;
+  final num? currentGrade;
+  final num? quizMaxGrade;
+  final String? quizName;
 
-  const QuizGradesDialog({super.key, required this.student, this.currentGrade});
+  const QuizGradesDialog({
+    super.key,
+    required this.student,
+    this.currentGrade,
+    this.quizMaxGrade,
+    this.quizName,
+  });
 
   @override
   State<QuizGradesDialog> createState() => _QuizGradesDialogState();
@@ -23,7 +31,6 @@ class QuizGradesDialog extends StatefulWidget {
 class _QuizGradesDialogState extends State<QuizGradesDialog> {
   late final TextEditingController _gradeController;
   late final FocusNode _focusNode;
-  final int maxGrade = 20; // Default max grade for now
   String? _errorText;
 
   @override
@@ -48,11 +55,11 @@ class _QuizGradesDialogState extends State<QuizGradesDialog> {
 
   void _saveGrade() {
     if (_gradeController.text.isNotEmpty) {
-      final grade = int.tryParse(_gradeController.text);
+      final grade = num.tryParse(_gradeController.text);
       if (grade != null) {
-        if (grade > maxGrade) {
+        if (widget.quizMaxGrade != null && grade > widget.quizMaxGrade!) {
           setState(() {
-            _errorText = 'الدرجة لا يمكن أن تتخطى $maxGrade';
+            _errorText = 'الدرجة لا يمكن أن تتخطى ${widget.quizMaxGrade}';
           });
           return;
         }
@@ -85,7 +92,7 @@ class _QuizGradesDialogState extends State<QuizGradesDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Header with Gradient
-            const QuizGradesDialogHeader(),
+            QuizGradesDialogHeader(title: widget.quizName),
 
             // Content
             Padding(
@@ -100,7 +107,9 @@ class _QuizGradesDialogState extends State<QuizGradesDialog> {
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
                     child: AppFormField(
                       controller: _gradeController,
-                      hintText: 'Enter grade (Max $maxGrade)',
+                      hintText: widget.quizMaxGrade != null
+                          ? 'Enter grade (Max ${widget.quizMaxGrade})'
+                          : 'Enter grade',
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center,
                       radius: 12.r, // Reduced from 16.r

@@ -30,13 +30,14 @@ class SessionModelAdapter extends TypeAdapter<SessionModel> {
       attendedCount: fields[10] as int,
       lateCount: fields[11] as int,
       hasQuiz: fields[12] == null ? true : fields[12] as bool,
+      quizName: fields[13] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SessionModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -62,7 +63,9 @@ class SessionModelAdapter extends TypeAdapter<SessionModel> {
       ..writeByte(11)
       ..write(obj.lateCount)
       ..writeByte(12)
-      ..write(obj.hasQuiz);
+      ..write(obj.hasQuiz)
+      ..writeByte(13)
+      ..write(obj.quizName);
   }
 
   @override

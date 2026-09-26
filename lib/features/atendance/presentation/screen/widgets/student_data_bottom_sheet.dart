@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:qrattendance/core/theme/light_colors.dart';
+import 'package:qrattendance/core/utils/url_launcher_util.dart';
 import 'package:qrattendance/features/atendance/domain/entities/student_entity.dart';
 
 class StudentDataBottomSheet extends StatelessWidget {
   final StudentEntity student;
 
-  const StudentDataBottomSheet({Key? key, required this.student})
-    : super(key: key);
+  const StudentDataBottomSheet({super.key, required this.student});
 
   static Future<void> show(BuildContext context, StudentEntity student) {
     return showModalBottomSheet(
@@ -82,6 +82,18 @@ class StudentDataBottomSheet extends StatelessWidget {
               value: student.group!.name,
               theme: theme,
             ),
+          _buildPhoneRow(
+            icon: Icons.phone_android_rounded,
+            title: "رقم تليفون الطالب",
+            phone: student.studentPhone,
+            theme: theme,
+          ),
+          _buildPhoneRow(
+            icon: Icons.phone_rounded,
+            title: "رقم تليفون ولي الأمر",
+            phone: student.parentPhone,
+            theme: theme,
+          ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -152,6 +164,81 @@ class StudentDataBottomSheet extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneRow({
+    required IconData icon,
+    required String title,
+    required String phone,
+    required ThemeData theme,
+  }) {
+    final hasPhone = phone.isNotEmpty && phone != 'null';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppLightColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppLightColors.primary, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    hasPhone ? phone : "غير متوفر",
+                    textDirection: TextDirection.ltr,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: hasPhone ? Colors.black87 : Colors.grey[400],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasPhone) ...[
+            const SizedBox(width: 16),
+            InkWell(
+              onTap: () async {
+                try {
+                  await UrlLauncherUtil.launchPhone(phone);
+                } catch (e) {
+                  debugPrint('Could not launch phone: $e');
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.call, color: Colors.green, size: 20),
+              ),
+            ),
+          ],
         ],
       ),
     );

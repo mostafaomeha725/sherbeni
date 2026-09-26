@@ -93,7 +93,11 @@ class _SelectClassScreenBodyState extends State<SelectClassScreenBody> {
                                 SelectClassActionSheet.show(
                                   context,
                                   session,
-                                  [],
+                                  session.quizName != null
+                                      ? [
+                                          {'quiz_name': session.quizName},
+                                        ]
+                                      : [],
                                 );
                               } else {
                                 GoRouter.of(

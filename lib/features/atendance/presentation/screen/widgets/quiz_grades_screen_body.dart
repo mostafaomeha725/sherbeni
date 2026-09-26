@@ -113,7 +113,7 @@ class _QuizGradesScreenBodyState extends State<QuizGradesScreenBody> {
                             return QuizGradesCard(
                               student: student,
                               currentGrade: currentGrade,
-                              quizMaxGrade: student.maxScore,
+                              quizMaxGrade: student.maxScore ?? state.maxScore,
                               onGradeEntered: (grade) {
                                 context.read<QuizGradesCubit>().updateGrade(
                                   student.studentId,

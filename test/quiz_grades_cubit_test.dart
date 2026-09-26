@@ -99,9 +99,15 @@ void main() {
     cubit.close();
   });
 
-  Map<String, dynamic> createMockStudents(List<String> names) {
+  Map<String, dynamic> createMockStudents(
+    List<String> names, {
+    String? quizName,
+    num? maxScore,
+  }) {
     return {
       'data': {
+        if (quizName != null) 'quiz_name': quizName,
+        if (maxScore != null) 'max_score': maxScore,
         'grades': names
             .map(
               (n) => {
@@ -209,4 +215,44 @@ void main() {
     state = cubit.state as QuizGradesLoaded;
     expect(state.students[0].grade, 1.55);
   });
+
+  test('TEST 6 - Map quizName and maxScore correctly from API', () async {
+    // Arrange
+    fakeGetCachedQuizStudentsUseCase.mockResponse = const Right(null);
+    fakeGetQuizStudentsUseCase.mockResponse = Right(
+      createMockStudents(['A'], quizName: 'Math Quiz', maxScore: 50.5),
+    );
+
+    // Act
+    await cubit.fetchStudents('session_1');
+
+    // Assert
+    expect(cubit.state, isA<QuizGradesLoaded>());
+    final state = cubit.state as QuizGradesLoaded;
+    expect(state.quizName, 'Math Quiz');
+    expect(state.maxScore, 50.5);
+  });
+
+  test(
+    'TEST 7 - Old cache without quiz_name and max_score does not crash',
+    () async {
+      // Arrange
+      fakeGetCachedQuizStudentsUseCase.mockResponse = Right(
+        createMockStudents(['A']), // No quizName or maxScore
+      );
+      fakeGetQuizStudentsUseCase.mockResponse = Left(
+        ServerFailure(message: 'Offline'),
+      );
+
+      // Act
+      await cubit.fetchStudents('session_1');
+
+      // Assert
+      expect(cubit.state, isA<QuizGradesLoaded>());
+      final state = cubit.state as QuizGradesLoaded;
+      expect(state.quizName, isNull);
+      expect(state.maxScore, isNull);
+      expect(state.students.length, 1);
+    },
+  );
 }
