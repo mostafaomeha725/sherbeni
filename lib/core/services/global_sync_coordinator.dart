@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/widgets.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:qrattendance/core/network/network_service.dart';
 import 'package:qrattendance/features/atendance/data/data_sources/attendance_local_data_source.dart';
-import 'package:qrattendance/features/atendance/data/model/attendance_model.dart';
-import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/sync_offline_data_use_case.dart';
 
-class GlobalSyncCoordinator with WidgetsBindingObserver {
+import 'global_sync_backoff_timer.dart';
+import 'global_sync_watcher.dart';
+
+class GlobalSyncCoordinator {
   final SyncOfflineDataUseCase syncOfflineDataUseCase;
   final AttendanceLocalDataSource localDataSource;
   final Connectivity connectivity;
@@ -16,72 +15,36 @@ class GlobalSyncCoordinator with WidgetsBindingObserver {
   bool _isSyncing = false;
   bool _isChecking = false;
 
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  StreamSubscription<BoxEvent>? _hiveAttendanceSubscription;
-  StreamSubscription<BoxEvent>? _hiveGradesSubscription;
-
-  Timer? _retryTimer;
-  int _currentBackoffSeconds = 5;
-  static const int _maxBackoffSeconds = 60;
+  late final GlobalSyncWatcher _watcher;
+  final GlobalSyncBackoffTimer _backoffTimer = GlobalSyncBackoffTimer();
 
   GlobalSyncCoordinator({
     required this.syncOfflineDataUseCase,
     required this.localDataSource,
     required this.connectivity,
-  });
+  }) {
+    _watcher = GlobalSyncWatcher(
+      connectivity: connectivity,
+      onTriggerSync: () => _triggerCheck(resetBackoff: true),
+    );
+  }
 
   void init() {
-    WidgetsBinding.instance.addObserver(this);
-
-    // Listen to global connectivity changes
-    _connectivitySubscription = connectivity.onConnectivityChanged.listen((
-      result,
-    ) {
-      final isConnected =
-          result.contains(ConnectivityResult.wifi) ||
-          result.contains(ConnectivityResult.mobile);
-      if (isConnected) _triggerCheck(resetBackoff: true);
-    });
-
-    // Listen to Hive box changes (new offline scans)
-    if (Hive.isBoxOpen('studentSessions')) {
-      _hiveAttendanceSubscription = Hive.box<AttendanceModel>('studentSessions')
-          .watch()
-          .listen((_) {
-            _triggerCheck(resetBackoff: true);
-          });
-    }
-
-    if (Hive.isBoxOpen('pendingQuizGrades')) {
-      _hiveGradesSubscription =
-          Hive.box<PendingQuizGradeModel>('pendingQuizGrades').watch().listen((
-            _,
-          ) {
-            _triggerCheck(resetBackoff: true);
-          });
-    }
-
+    _watcher.startWatching();
     // Attempt sync immediately on startup
     _triggerCheck(resetBackoff: true);
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _triggerCheck(resetBackoff: true);
-    }
-  }
-
   Future<void> _triggerCheck({bool resetBackoff = false}) async {
     if (resetBackoff) {
-      _currentBackoffSeconds = 5;
+      _backoffTimer.reset();
     }
 
     // Single-flight lock
     if (_isSyncing || _isChecking) return;
 
     // Stop any scheduled retry
-    _retryTimer?.cancel();
+    _backoffTimer.cancel();
 
     try {
       _isChecking = true;
@@ -96,6 +59,7 @@ class GlobalSyncCoordinator with WidgetsBindingObserver {
       _isChecking = false;
 
       if (hasActualInternet) {
+        print('OFFLINE_SEARCH_SYNC_TRIGGERED');
         await _executeSync();
       } else {
         // Wi-Fi connected but NO actual Internet (or disconnected).
@@ -124,14 +88,13 @@ class GlobalSyncCoordinator with WidgetsBindingObserver {
         (successData) async {
           // Sync successful.
           // Verify if any pending data still remains (e.g. permanently failed ones)
-          // Wait, permanently failed ones have error != null, so _hasPendingData() will ignore them.
           final hasPending = await _hasPendingData();
           if (hasPending) {
             _scheduleRetry();
           } else {
             // All valid pending data synced successfully
-            _currentBackoffSeconds = 5;
-            _retryTimer?.cancel();
+            _backoffTimer.reset();
+            _backoffTimer.cancel();
           }
         },
       );
@@ -143,28 +106,28 @@ class GlobalSyncCoordinator with WidgetsBindingObserver {
   }
 
   void _scheduleRetry() {
-    _retryTimer?.cancel();
-    _retryTimer = Timer(Duration(seconds: _currentBackoffSeconds), () {
+    _backoffTimer.scheduleRetry(() {
       _triggerCheck(resetBackoff: false);
     });
-
-    // Exponential backoff
-    _currentBackoffSeconds *= 2;
-    if (_currentBackoffSeconds > _maxBackoffSeconds) {
-      _currentBackoffSeconds = _maxBackoffSeconds;
-    }
   }
 
   Future<bool> _hasPendingData() async {
     try {
       final attendances = await localDataSource.getOfflineAttendances();
       final pendingGrades = await localDataSource.getPendingQuizGrades();
+      final pendingHomework = await localDataSource.getPendingHomeworkGrades();
+      final pendingSearches = await localDataSource.getPendingSearches();
 
       if (attendances.isNotEmpty) return true;
+      if (pendingSearches.isNotEmpty) return true;
 
       // For grades, check if any is NOT permanently failed
       for (final grade in pendingGrades) {
         if (grade.error == null) return true;
+      }
+
+      for (final hw in pendingHomework) {
+        if (hw.error == null) return true;
       }
 
       return false;
@@ -174,10 +137,7 @@ class GlobalSyncCoordinator with WidgetsBindingObserver {
   }
 
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _connectivitySubscription?.cancel();
-    _hiveAttendanceSubscription?.cancel();
-    _hiveGradesSubscription?.cancel();
-    _retryTimer?.cancel();
+    _watcher.dispose();
+    _backoffTimer.cancel();
   }
 }

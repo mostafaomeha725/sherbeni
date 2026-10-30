@@ -10,11 +10,13 @@ class SaveOfflineAttendanceUseCase {
   Future<Either<Failure, String>> call({
     required String uid,
     required String sessionId,
+    String? sessionName,
     String? scanTime,
   }) async {
     return await repository.saveOfflineAttendance(
       uid: uid,
       sessionId: sessionId,
+      sessionName: sessionName,
       scanTime: scanTime,
     );
   }

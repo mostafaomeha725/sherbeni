@@ -5,4 +5,5 @@ class Routes {
   static const selectClassScreen = '/Select-Class-screen';
   static const scanQrScreen = '/Scan-QR-screen';
   static const quizGradesScreen = '/Quiz-Grades-screen';
+  static const homeworkGradesScreen = '/Homework-Grades-screen';
 }

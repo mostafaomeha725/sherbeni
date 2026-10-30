@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -8,9 +7,10 @@ import 'package:qrattendance/core/utils/audio_helper.dart';
 import 'package:qrattendance/features/atendance/domain/entities/student_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/scan_qr_offline/scan_qr_ofline_cubit.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_student_data/show_student_data_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr/scan_qr_screen_body.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/record_online_attendance/record_online_attendance_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/student_data_bottom_sheet.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/student_data_bottom_sheet/student_data_bottom_sheet.dart';
+import 'scan_qr_queue_manager.dart';
 import 'scan_qr_base_mixin.dart';
 import 'scan_qr_connectivity_mixin.dart';
 
@@ -18,13 +18,9 @@ mixin ScanQrHandlerMixin
     on State<ScanQrScreenBody>, ScanQrBaseMixin, ScanQrConnectivityMixin {
   String? statusMessage;
   DialogType? messageType;
-  String? scannedCode;
   Timer? _messageTimer;
 
-  final Map<String, DateTime> _scannedCodesMap = {};
-  final Set<String> _processingCodes = {};
-  final Queue<String> _scanQueue = Queue<String>();
-  bool _isProcessingQueue = false;
+  final ScanQrQueueManager _queueManager = ScanQrQueueManager();
 
   @override
   void showMessage(String message, DialogType type) {
@@ -61,35 +57,30 @@ mixin ScanQrHandlerMixin
     final cleanedCode = code.trim();
     final now = DateTime.now();
 
-    // Clean up old entries to prevent memory leaks over time
-    _scannedCodesMap.removeWhere(
-      (key, time) => now.difference(time).inSeconds >= 3,
-    );
-
-    // Prevent scanning if this exact QR is currently being processed or in queue
-    if (_processingCodes.contains(cleanedCode) ||
-        _scanQueue.contains(cleanedCode)) {
+    if (!hasInternet && cleanedCode.length > 36) {
+      showMessage(
+        "The ID exceeds the maximum allowed length of 36 characters.",
+        DialogType.error,
+      );
       return;
     }
 
-    // Prevent scanning the exact same code if it was processed within the last 3 seconds
-    if (_scannedCodesMap.containsKey(cleanedCode)) {
+    // Clean up old entries to prevent memory leaks over time
+    _queueManager.cleanUpOldEntries(now, 3);
+
+    // Prevent scanning if this exact QR is currently being processed or in queue or recent
+    if (!_queueManager.canAdd(cleanedCode)) {
       return;
     }
 
     // Add to queue and trigger processing
-    _scanQueue.add(cleanedCode);
+    _queueManager.addToQueue(cleanedCode);
     _processNextInQueue();
   }
 
   void _processNextInQueue() async {
-    if (_isProcessingQueue || _scanQueue.isEmpty) return;
-
-    _isProcessingQueue = true;
-    final codeToProcess = _scanQueue.removeFirst();
-
-    scannedCode = codeToProcess;
-    _processingCodes.add(codeToProcess);
+    final codeToProcess = _queueManager.getNextToProcess();
+    if (codeToProcess == null) return;
 
     try {
       if (!mounted) return;
@@ -99,9 +90,7 @@ mixin ScanQrHandlerMixin
         sessionId: widget.session.id.toString(),
       );
     } catch (e) {
-      if (scannedCode != null) {
-        _processingCodes.remove(scannedCode);
-      }
+      _queueManager.removeProcessingCode(_queueManager.currentScannedCode);
       showMessage("Error while scanning code: $e", DialogType.error);
       resetScanner();
     }
@@ -128,7 +117,9 @@ mixin ScanQrHandlerMixin
         await submitAttendanceOffline(student.id, scanTime);
       }
     } catch (e) {
-      // In case of any synchronous error
+      // In
+      //
+      //y synchronous error
       showMessage(e.toString(), DialogType.error);
     }
   }
@@ -137,12 +128,32 @@ mixin ScanQrHandlerMixin
     AudioHelper.playSuccess();
     if (mounted && currentStudent != null) {
       bool isSheetOpen = true;
-
-      StudentDataBottomSheet.show(context, currentStudent!).then((_) {
+      StudentDataBottomSheet.show(
+        context,
+        currentStudent!,
+        session: widget.session,
+      ).then((_) {
         isSheetOpen = false;
         resetScanner();
       });
-      // Removed auto-close so the sheet stays open until "Continue" is pressed.
+    } else {
+      resetScanner();
+    }
+  }
+
+  void handleRecordOfflineSuccess() async {
+    if (mounted && currentStudent != null && widget.session.hasHomework) {
+      bool isSheetOpen = true;
+      StudentDataBottomSheet.show(
+        context,
+        currentStudent!,
+        session: widget.session,
+        forceHomework: true,
+        isOffline: true,
+      ).then((_) {
+        isSheetOpen = false;
+        resetScanner();
+      });
     } else {
       resetScanner();
     }
@@ -155,29 +166,28 @@ mixin ScanQrHandlerMixin
   }
 
   void resetScanner() {
-    if (scannedCode != null) {
-      _processingCodes.remove(scannedCode);
-      _scannedCodesMap[scannedCode!] = DateTime.now();
-    }
-
-    scannedCode = null;
-
-    _isProcessingQueue = false;
+    _queueManager.finishProcessingCurrent();
     _processNextInQueue();
   }
 
   Future<void> submitAttendanceOffline(String uid, String scanTime) async {
     try {
       if (!mounted) return;
-      await context.read<ScanQrOflineCubit>().saveOffline(
+      final result = await context.read<ScanQrOflineCubit>().saveOffline(
         uid: uid,
         sessionId: widget.session.id.toString(),
+        sessionName: "${widget.session.courseTitle} - ${widget.session.title}",
         scanTime: scanTime,
       );
       // Success sound and message are handled by the BlocListener in ScanQrScreenBody
+      // We do NOT resetScanner() here for success because we might need to show the Homework sheet in handleRecordOfflineSuccess.
+      if (result == "duplicate" ||
+          result == "error" ||
+          result == "invalid_uid") {
+        resetScanner();
+      }
     } catch (e) {
       showMessage("Failed to save data offline: $e", DialogType.error);
-    } finally {
       resetScanner();
     }
   }

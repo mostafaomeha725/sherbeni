@@ -6,7 +6,10 @@ import 'package:qrattendance/features/atendance/data/data_sources/attendance_loc
 import 'package:qrattendance/features/atendance/data/data_sources/attendance_remote_data_source.dart';
 import 'package:qrattendance/features/atendance/data/model/attendance_model.dart';
 import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
+import 'package:qrattendance/features/atendance/data/model/attendance_history_model.dart';
+import 'package:qrattendance/features/atendance/data/model/quiz_grade_history_model.dart';
 import 'package:qrattendance/features/atendance/data/repositories/attendance_repository_impl.dart';
+import 'package:qrattendance/features/atendance/data/data_sources/history_local_data_source.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:qrattendance/core/error/failure.dart';
 
@@ -28,8 +31,22 @@ class FakeAttendanceLocalDataSource implements AttendanceLocalDataSource {
   final Map<String, String> quizStudentsCache = {};
   final Map<String, PendingQuizGradeModel> pendingGrades = {};
 
+  final Map<String, AttendanceModel> offlineAttendances = {};
+
   @override
-  Future<List<AttendanceModel>> getOfflineAttendances() async => [];
+  Future<List<AttendanceModel>> getOfflineAttendances() async =>
+      offlineAttendances.values.toList();
+
+  @override
+  Future<void> saveOfflineAttendance(AttendanceModel model) async {
+    offlineAttendances['${model.uid}_${model.sessionId}'] = model;
+  }
+
+  @override
+  Future<void> deleteAttendances(List<int> keys) async {
+    // Fake deletion by clearing
+    offlineAttendances.clear();
+  }
 
   @override
   Future<String?> getQuizStudentsCache(String key) async =>
@@ -79,6 +96,8 @@ class FakeAttendanceRemoteDataSource implements AttendanceRemoteDataSource {
   bool shouldThrowOnSyncBulk = false;
   bool isNetworkError = false;
   bool isValidationError = false;
+  int syncBatchCallCount = 0;
+  Map<String, dynamic> lastSyncBatchBody = {};
 
   Future<void> Function()? onSyncBulkCalled;
 
@@ -129,6 +148,19 @@ class FakeAttendanceRemoteDataSource implements AttendanceRemoteDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> syncBatch(Map<String, dynamic> data) async {
+    syncBatchCallCount++;
+    lastSyncBatchBody = data;
+    if (shouldThrowOnSyncBulk) {
+      if (isValidationError) {
+        throw Exception('Validation Error 400');
+      }
+      throw ServerFailure(message: 'Failed host lookup');
+    }
+    return mockSyncBulkResponse;
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -159,22 +191,86 @@ final class MockIOOverrides extends IOOverrides {
   }
 }
 
+class FakeHistoryLocalDataSource implements HistoryLocalDataSource {
+  final Map<String, String> attendanceHistoryStatuses = {};
+  final Map<String, String?> attendanceHistoryErrors = {};
+  final List<AttendanceHistoryModel> attendanceHistories = [];
+
+  @override
+  Future<void> saveAttendanceHistory(AttendanceHistoryModel model) async {
+    attendanceHistories.add(model);
+  }
+
+  @override
+  Future<void> updateAttendanceHistoryStatus(
+    String pendingKey,
+    String status, {
+    String? error,
+    DateTime? syncedAt,
+  }) async {
+    attendanceHistoryStatuses[pendingKey] = status;
+    attendanceHistoryErrors[pendingKey] = error;
+  }
+
+  @override
+  Future<List<AttendanceHistoryModel>> getAttendanceHistory() async =>
+      attendanceHistories;
+
+  @override
+  Future<void> deleteAttendanceHistory(String pendingKey) async {
+    attendanceHistories.removeWhere((e) => e.pendingKey == pendingKey);
+  }
+
+  @override
+  Future<void> clearAttendanceHistory() async {
+    attendanceHistories.clear();
+  }
+
+  @override
+  Future<void> saveQuizGradeHistory(QuizGradeHistoryModel model) async {}
+
+  @override
+  Future<void> updateQuizGradeHistoryStatus(
+    String pendingKey,
+    String status, {
+    String? error,
+    DateTime? syncedAt,
+  }) async {}
+
+  @override
+  Future<List<QuizGradeHistoryModel>> getQuizGradeHistory() async => [];
+
+  @override
+  Future<void> deleteQuizGradeHistory(String pendingKey) async {}
+
+  @override
+  Future<void> clearQuizGradeHistory() async {}
+
+  @override
+  Future<void> cleanupOldHistory(Duration maxAge) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   late AttendanceRepositoryImpl repository;
   late FakeAttendanceLocalDataSource mockLocalDataSource;
   late FakeAttendanceRemoteDataSource mockRemoteDataSource;
   late FakeConnectivity mockConnectivity;
+  late FakeHistoryLocalDataSource mockHistoryLocalDataSource;
 
   setUp(() {
     mockConnectivity = FakeConnectivity();
     IOOverrides.global = MockIOOverrides(mockConnectivity);
     mockLocalDataSource = FakeAttendanceLocalDataSource();
     mockRemoteDataSource = FakeAttendanceRemoteDataSource();
-    mockConnectivity = FakeConnectivity();
+    mockHistoryLocalDataSource = FakeHistoryLocalDataSource();
     repository = AttendanceRepositoryImpl(
       localDataSource: mockLocalDataSource,
       remoteDataSource: mockRemoteDataSource,
       connectivity: mockConnectivity,
+      historyLocalDataSource: mockHistoryLocalDataSource,
     );
   });
 
@@ -184,6 +280,7 @@ void main() {
 
       final result = await repository.addOrUpdateQuizGrade(
         'session-1',
+        null,
         'stu-1',
         9.5,
       );
@@ -202,6 +299,7 @@ void main() {
 
       final result = await repository.addOrUpdateQuizGrade(
         'session-1',
+        null,
         'stu-1',
         9.5,
       );
@@ -218,6 +316,7 @@ void main() {
 
       final result = await repository.addOrUpdateQuizGrade(
         'session-1',
+        null,
         'stu-1',
         9.5,
       );
@@ -416,12 +515,503 @@ void main() {
 
       await repository.syncOfflineData();
 
-      // Still pending but marked with error so it skips next time
       expect(mockLocalDataSource.pendingGrades.length, 1);
       expect(
         mockLocalDataSource.pendingGrades['${sessionId}_$studentId']!.error,
         contains('must be a UUID'),
       );
     });
+
+    test(
+      '1. One valid + four invalid. Conflict priority. Network failure retryable.',
+      () async {
+        final validId = 'valid-111';
+        final invalid1 = 'inv-1';
+        final invalid2 = 'inv-2';
+        final invalid3 = 'inv-3';
+        final invalid4 = 'inv-4';
+        final conflictId = 'conflict-555';
+        final sessionId = 'sess-multi';
+
+        // Setup 6 pending records
+        for (var id in [
+          invalid2,
+          invalid1,
+          validId,
+          invalid4,
+          conflictId,
+          invalid3,
+        ]) {
+          await mockLocalDataSource.saveOfflineAttendance(
+            AttendanceModel(
+              uid: id,
+              sessionId: sessionId,
+              scanTime: '2023-10-27',
+            ),
+          );
+        }
+
+        mockRemoteDataSource.shouldThrowOnSyncBulk = false;
+
+        // Response order differs from request order intentionally
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          'status': true,
+          'message': 'تم حفظ البيانات بنجاح',
+          'data': {
+            'valid': 2,
+            'invalid': 4,
+            'enrollment_results': [
+              {
+                'student_id': conflictId,
+                'session_id': sessionId,
+                'status': 'success',
+                'message': 'Student enrolled',
+              },
+              {
+                'student_id': validId,
+                'session_id': sessionId,
+                'status': 'skipped',
+                'message': 'Student is already enrolled in this course',
+              },
+            ],
+            'invalid_results': [
+              {
+                'student_id': conflictId, // CONFLICT! Appears in both.
+                'session_id': sessionId,
+                'reason': 'Data too long for column (fake error)',
+              },
+              {
+                'student_id': invalid4,
+                'session_id': sessionId,
+                'reason': 'Data too long for column \'student_id\' at row 1',
+              },
+              {
+                'student_id': invalid1,
+                'session_id': sessionId,
+                'reason': 'Student not found',
+              },
+              {
+                'student_id': invalid3,
+                'session_id': sessionId,
+                'reason': 'Some other error',
+              },
+              {
+                'student_id': invalid2,
+                'session_id': sessionId,
+                'reason': 'Invalid grade format',
+              },
+            ],
+          },
+        };
+
+        await repository.syncOfflineData();
+
+        // Check valid (skipped status)
+        final validKey = '${validId}_$sessionId';
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[validKey],
+          'success',
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryErrors[validKey],
+          null,
+        );
+
+        // Check conflict (appears in both -> must be SUCCESS)
+        final conflictKey = '${conflictId}_$sessionId';
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[conflictKey],
+          'success',
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryErrors[conflictKey],
+          null,
+        );
+
+        // Check invalid 1
+        final inv1Key = '${invalid1}_$sessionId';
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[inv1Key],
+          'failed',
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryErrors[inv1Key],
+          'Student not found',
+        );
+
+        // Check invalid 4
+        final inv4Key = '${invalid4}_$sessionId';
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[inv4Key],
+          'failed',
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryErrors[inv4Key],
+          'Data too long for column \'student_id\' at row 1',
+        );
+
+        // 7. Network failure remains retryable and does not get treated as definitive backend invalid result
+        mockLocalDataSource.offlineAttendances.clear();
+        mockHistoryLocalDataSource.attendanceHistoryStatuses.clear();
+        mockHistoryLocalDataSource.attendanceHistoryErrors.clear();
+
+        final netFailId = 'net-fail-1';
+        await mockLocalDataSource.saveOfflineAttendance(
+          AttendanceModel(
+            uid: netFailId,
+            sessionId: sessionId,
+            scanTime: '2023-10-27',
+          ),
+        );
+
+        mockRemoteDataSource.shouldThrowOnSyncBulk = true;
+        mockRemoteDataSource.isValidationError = false; // Network failure
+
+        await repository.syncOfflineData();
+
+        // Pending queue retains the record so it's retryable
+        expect(mockLocalDataSource.offlineAttendances.length, 1);
+        final netFailKey = '${netFailId}_$sessionId';
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[netFailKey],
+          'pending',
+        );
+      },
+    );
+  });
+
+  group('Retry Specific Offline Attendance', () {
+    test(
+      '1. Retry WITH internet: existing ONLINE API is called, offline bulk sync is NOT called, successful backend result -> History success',
+      () async {
+        mockConnectivity.isConnectedValue = true;
+        final studentId1 = 'std-1';
+        final sessionId = 'sess-multi';
+
+        await mockLocalDataSource.saveOfflineAttendance(
+          AttendanceModel(
+            uid: studentId1,
+            sessionId: sessionId,
+            scanTime: '2023-10-27',
+          ),
+        );
+
+        await mockHistoryLocalDataSource.saveAttendanceHistory(
+          AttendanceHistoryModel(
+            pendingKey: '${studentId1}_$sessionId',
+            uid: studentId1,
+            sessionId: sessionId,
+            studentName: 'Test Student',
+            scanTime: '2023-10-27',
+            syncStatus: 'failed',
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        mockRemoteDataSource.shouldThrowOnSyncBulk = false;
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          'status': true,
+          'message': 'تم الحفظ',
+          'data': {
+            'valid': 1,
+            'invalid': 0,
+            'enrollment_results': [
+              {
+                'student_id': studentId1,
+                'session_id': sessionId,
+                'status': 'success',
+              },
+            ],
+            'invalid_results': [],
+          },
+        };
+
+        final pendingKey1 = '${studentId1}_$sessionId';
+        final result = await repository.retrySpecificOfflineAttendance(
+          pendingKey1,
+        );
+
+        expect(result.isRight(), true);
+        // History should be success
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[pendingKey1],
+          'success',
+        );
+      },
+    );
+
+    test(
+      '2. Retry WITHOUT internet: no API call, record is saved to studentSessions, History remains pending/retryable',
+      () async {
+        mockConnectivity.isConnectedValue = false;
+        final studentId1 = 'std-offline';
+        final sessionId = 'sess-1';
+        final pendingKey = '${studentId1}_$sessionId';
+
+        // Record is in History but NOT in pending queue
+        await mockHistoryLocalDataSource.saveAttendanceHistory(
+          AttendanceHistoryModel(
+            pendingKey: pendingKey,
+            uid: studentId1,
+            sessionId: sessionId,
+            studentName: 'Test Student',
+            scanTime: '2023-11-01 10:00:00',
+            syncStatus: 'failed',
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        final result = await repository.retrySpecificOfflineAttendance(
+          pendingKey,
+        );
+        expect(result.isLeft(), true);
+        result.fold(
+          (l) => expect(l.message, contains('لا يوجد اتصال بالإنترنت')),
+          (r) => fail(''),
+        );
+
+        // Check it was added to pending queue
+        expect(mockLocalDataSource.offlineAttendances.length, 1);
+        expect(
+          mockLocalDataSource.offlineAttendances.values.first.uid,
+          studentId1,
+        );
+      },
+    );
+
+    test(
+      '4. Online Retry backend invalid: History failed, exact backend reason stored',
+      () async {
+        mockConnectivity.isConnectedValue = true;
+        final studentId1 = 'std-inv';
+        final sessionId = 'sess-multi';
+        final pendingKey = '${studentId1}_$sessionId';
+
+        await mockLocalDataSource.saveOfflineAttendance(
+          AttendanceModel(
+            uid: studentId1,
+            sessionId: sessionId,
+            scanTime: '2023-10-27',
+          ),
+        );
+
+        await mockHistoryLocalDataSource.saveAttendanceHistory(
+          AttendanceHistoryModel(
+            pendingKey: pendingKey,
+            uid: studentId1,
+            sessionId: sessionId,
+            studentName: 'Test Student',
+            scanTime: '2023-10-27',
+            syncStatus: 'failed',
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        mockRemoteDataSource.shouldThrowOnSyncBulk = false;
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          'status': true,
+          'message': 'تم الحفظ',
+          'data': {
+            'valid': 0,
+            'invalid': 1,
+            'enrollment_results': [],
+            'invalid_results': [
+              {
+                'student_id': studentId1,
+                'session_id': sessionId,
+                'reason': 'Data too long',
+              },
+            ],
+          },
+        };
+
+        final result = await repository.retrySpecificOfflineAttendance(
+          pendingKey,
+        );
+
+        expect(result.isLeft(), true);
+        result.fold(
+          (l) => expect(l.message, 'Data too long'),
+          (r) => fail('should be Left'),
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryStatuses[pendingKey],
+          'failed',
+        );
+        expect(
+          mockHistoryLocalDataSource.attendanceHistoryErrors[pendingKey],
+          'Data too long',
+        );
+      },
+    );
+
+    test(
+      '5. Online Retry network failure: record moved to pending queue, History retryable',
+      () async {
+        mockConnectivity.isConnectedValue =
+            true; // Intentionally true to simulate runtime failure
+        final studentId1 = 'std-net';
+        final sessionId = 'sess-multi';
+        final pendingKey = '${studentId1}_$sessionId';
+
+        // History only
+        await mockHistoryLocalDataSource.saveAttendanceHistory(
+          AttendanceHistoryModel(
+            pendingKey: pendingKey,
+            uid: studentId1,
+            sessionId: sessionId,
+            studentName: 'Test Student',
+            scanTime: '2023-11-01 10:00:00',
+            syncStatus: 'failed',
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        mockRemoteDataSource.shouldThrowOnSyncBulk = true;
+        mockRemoteDataSource.isValidationError =
+            false; // simulates network error -> "Network Error"
+
+        final result = await repository.retrySpecificOfflineAttendance(
+          pendingKey,
+        );
+
+        expect(result.isLeft(), true);
+        // Saved to pending queue
+        expect(mockLocalDataSource.offlineAttendances.length, 1);
+      },
+    );
+  });
+
+  group('retryAllOfflineAttendance', () {
+    test(
+      '1. 200 records online: exactly ONE POST, request contains 200 records',
+      () async {
+        mockConnectivity.isConnectedValue = true;
+        for (int i = 0; i < 200; i++) {
+          await mockHistoryLocalDataSource.saveAttendanceHistory(
+            AttendanceHistoryModel(
+              pendingKey: '${i}_s1',
+              uid: '$i',
+              sessionId: 's1',
+              studentName: 'Student $i',
+              scanTime: '2023-10-10 10:10:10',
+              syncStatus: 'failed',
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          "data": {
+            "valid_results": 200,
+            "invalid_results": [],
+            "enrollment_results": List.generate(
+              200,
+              (i) => {"student_id": "$i", "session_id": "s1"},
+            ),
+          },
+        };
+
+        final result = await repository.retryAllOfflineAttendance();
+
+        expect(result.isRight(), true);
+        expect(mockRemoteDataSource.syncBatchCallCount, 1);
+        expect(
+          mockRemoteDataSource.lastSyncBatchBody['attendance'].length,
+          200,
+        );
+
+        for (int i = 0; i < 200; i++) {
+          expect(
+            mockHistoryLocalDataSource.attendanceHistoryStatuses['${i}_s1'],
+            'success',
+          );
+        }
+      },
+    );
+
+    test(
+      '2. 200 records offline: ZERO API calls, 200 records stored in pending queue',
+      () async {
+        mockConnectivity.isConnectedValue = false;
+        for (int i = 0; i < 200; i++) {
+          await mockHistoryLocalDataSource.saveAttendanceHistory(
+            AttendanceHistoryModel(
+              pendingKey: '${i}_s1',
+              uid: '$i',
+              sessionId: 's1',
+              studentName: 'Student $i',
+              scanTime: '2023-10-10 10:10:10',
+              syncStatus: 'failed',
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+
+        mockRemoteDataSource.syncBatchCallCount = 0;
+        final result = await repository.retryAllOfflineAttendance();
+
+        expect(result.isLeft(), true);
+        expect(mockRemoteDataSource.syncBatchCallCount, 0);
+        expect(mockLocalDataSource.offlineAttendances.length, 200);
+      },
+    );
+
+    test(
+      '5. Backend response: valid 197 / invalid 3 -> 197 History = success, 3 History = failed',
+      () async {
+        mockConnectivity.isConnectedValue = true;
+        for (int i = 0; i < 200; i++) {
+          await mockHistoryLocalDataSource.saveAttendanceHistory(
+            AttendanceHistoryModel(
+              pendingKey: '${i}_s1',
+              uid: '$i',
+              sessionId: 's1',
+              studentName: 'n',
+              scanTime: 'time',
+              syncStatus: 'failed',
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+
+        mockRemoteDataSource.mockSyncBulkResponse = {
+          "data": {
+            "valid_results": 197,
+            "enrollment_results": List.generate(
+              197,
+              (i) => {"student_id": "$i", "session_id": "s1"},
+            ),
+            "invalid_results": List.generate(
+              3,
+              (i) => {
+                "student_id": "${197 + i}",
+                "session_id": "s1",
+                "reason": "Not registered",
+              },
+            ),
+          },
+        };
+
+        await repository.retryAllOfflineAttendance();
+
+        for (int i = 0; i < 197; i++) {
+          expect(
+            mockHistoryLocalDataSource.attendanceHistoryStatuses['${i}_s1'],
+            'success',
+          );
+        }
+        for (int i = 197; i < 200; i++) {
+          expect(
+            mockHistoryLocalDataSource.attendanceHistoryStatuses['${i}_s1'],
+            'failed',
+          );
+          expect(
+            mockHistoryLocalDataSource.attendanceHistoryErrors['${i}_s1'],
+            'Not registered',
+          );
+        }
+      },
+    );
   });
 }

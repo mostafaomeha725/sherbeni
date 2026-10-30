@@ -4,7 +4,7 @@ import 'package:qrattendance/core/di/services_locator.dart';
 import 'package:qrattendance/core/widgets/custom_app_bar.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/session_students/session_students_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/session_students_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/session_students/session_students_screen_body.dart';
 
 class SessionStudentsScreen extends StatefulWidget {
   final SessionEntity session;

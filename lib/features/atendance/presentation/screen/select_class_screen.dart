@@ -4,7 +4,7 @@ import 'package:qrattendance/core/di/services_locator.dart';
 import 'package:qrattendance/core/widgets/custom_app_bar.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_classes/show_classes_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/select_class/select_class_screen_body.dart';
 
 import 'package:qrattendance/features/atendance/presentation/cubit/check_session_quizzes/check_session_quizzes_cubit.dart';
 

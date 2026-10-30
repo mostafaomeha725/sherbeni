@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr/scan_qr_screen_body.dart';
 import 'scan_qr_base_mixin.dart';
 
 mixin ScanQrCameraMixin on State<ScanQrScreenBody>, ScanQrBaseMixin {

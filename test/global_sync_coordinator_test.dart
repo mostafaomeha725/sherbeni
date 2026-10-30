@@ -8,6 +8,8 @@ import 'package:qrattendance/features/atendance/domain/use_cases/sync_offline_da
 import 'package:qrattendance/features/atendance/data/data_sources/attendance_local_data_source.dart';
 import 'package:qrattendance/features/atendance/data/model/attendance_model.dart';
 import 'package:qrattendance/features/atendance/data/model/pending_quiz_grade_model.dart';
+import 'package:qrattendance/features/atendance/data/model/pending_homework_grade_model.dart';
+import 'package:qrattendance/features/atendance/data/model/pending_search_model.dart';
 import 'package:qrattendance/core/error/failure.dart';
 import 'dart:io';
 
@@ -68,12 +70,21 @@ class FakeConnectivity implements Connectivity {
 class FakeAttendanceLocalDataSource implements AttendanceLocalDataSource {
   List<AttendanceModel> attendances = [];
   List<PendingQuizGradeModel> grades = [];
+  List<PendingHomeworkGradeModel> homeworkGrades = [];
+  List<PendingSearchModel> searches = [];
 
   @override
   Future<List<AttendanceModel>> getOfflineAttendances() async => attendances;
 
   @override
   Future<List<PendingQuizGradeModel>> getPendingQuizGrades() async => grades;
+
+  @override
+  Future<List<PendingHomeworkGradeModel>> getPendingHomeworkGrades() async =>
+      homeworkGrades;
+
+  @override
+  Future<List<PendingSearchModel>> getPendingSearches() async => searches;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -187,7 +198,9 @@ void main() {
         await Future.delayed(const Duration(milliseconds: 100));
         mockSyncUseCase.callCount = 0; // reset
 
-        coordinator.didChangeAppLifecycleState(AppLifecycleState.resumed);
+        WidgetsBinding.instance.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
         await Future.delayed(const Duration(milliseconds: 100));
         expect(mockSyncUseCase.callCount, 1);
       },
@@ -211,7 +224,9 @@ void main() {
           coordinator.init();
 
           // Simulate multiple triggers instantly
-          coordinator.didChangeAppLifecycleState(AppLifecycleState.resumed);
+          WidgetsBinding.instance.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
           mockConnectivity.emit([ConnectivityResult.wifi]);
 
           await Future.delayed(const Duration(milliseconds: 50));

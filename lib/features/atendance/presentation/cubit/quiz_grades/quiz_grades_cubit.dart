@@ -165,7 +165,7 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
     );
   }
 
-  Future<void> updateGrade(String studentId, num grade) async {
+  Future<void> updateGrade(String studentId, num grade, {String? sessionName}) async {
     if (state is! QuizGradesLoaded) return;
     final currentState = state as QuizGradesLoaded;
 
@@ -174,6 +174,7 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
 
     final result = await updateQuizGradeUseCase.call(
       _currentSessionId,
+      sessionName,
       studentId,
       grade,
     );
@@ -198,6 +199,7 @@ class QuizGradesCubit extends Cubit<QuizGradesState> {
               studentCode: student.studentCode,
               email: student.email,
               phoneNumber: student.phoneNumber,
+              parentPhoneNumber: student.parentPhoneNumber,
               picture: student.picture,
               offlineStatus: student.offlineStatus,
               quizAttemptId: student.quizAttemptId,

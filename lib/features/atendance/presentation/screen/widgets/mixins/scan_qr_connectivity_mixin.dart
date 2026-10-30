@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/scan_qr/scan_qr_screen_body.dart';
 import 'scan_qr_base_mixin.dart';
 
 import 'package:qrattendance/core/network/network_service.dart';

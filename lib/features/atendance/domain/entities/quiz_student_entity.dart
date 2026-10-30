@@ -6,6 +6,7 @@ class QuizStudentEntity extends Equatable {
   final String studentCode;
   final String email;
   final String? phoneNumber;
+  final String? parentPhoneNumber;
   final String? picture;
   final String offlineStatus;
   final String? quizAttemptId;
@@ -22,6 +23,7 @@ class QuizStudentEntity extends Equatable {
     required this.studentCode,
     required this.email,
     this.phoneNumber,
+    this.parentPhoneNumber,
     this.picture,
     required this.offlineStatus,
     this.quizAttemptId,
@@ -40,6 +42,7 @@ class QuizStudentEntity extends Equatable {
     studentCode,
     email,
     phoneNumber,
+    parentPhoneNumber,
     picture,
     offlineStatus,
     quizAttemptId,

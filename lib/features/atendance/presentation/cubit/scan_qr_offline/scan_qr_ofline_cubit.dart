@@ -17,6 +17,7 @@ class ScanQrOflineCubit extends Cubit<ScanQrOflineState> {
   Future<String> saveOffline({
     required String uid,
     required String sessionId,
+    String? sessionName,
     String? scanTime,
   }) async {
     emit(ScanQrOflineLoading());
@@ -24,6 +25,7 @@ class ScanQrOflineCubit extends Cubit<ScanQrOflineState> {
     final result = await saveOfflineAttendanceUseCase.call(
       uid: uid,
       sessionId: sessionId,
+      sessionName: sessionName,
       scanTime: scanTime,
     );
 

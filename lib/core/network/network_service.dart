@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
-import 'package:chucker_flutter/chucker_flutter.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dartz/dartz.dart';
 import 'package:qrattendance/core/cache/preferences_storage.dart';
@@ -19,7 +19,7 @@ import 'authorization_interceptor.dart';
 class NetworkService {
   final Dio dio;
 
-  NetworkService(this.dio) {
+  NetworkService(this.dio, {Dio Function()? retryDioFactory}) {
     dio.options
       ..baseUrl = AppStrings.baseUrl
       ..responseType = ResponseType.json
@@ -29,18 +29,21 @@ class NetworkService {
       ..receiveTimeout = const Duration(seconds: 30);
 
     addHeaders();
-    addInterceptors();
+    addInterceptors(retryDioFactory: retryDioFactory);
   }
 
-  void addInterceptors() {
-    dio.interceptors.add(AuthorizationInterceptor());
-
-    // if (isDevEnviroment()) {
-    dio.interceptors.add(ChuckerDioInterceptor());
+  void addInterceptors({Dio Function()? retryDioFactory}) {
     dio.interceptors.add(
-      PrettyDioLogger(requestBody: true, requestHeader: true),
+      AuthorizationInterceptor(retryDioFactory: retryDioFactory),
     );
-    // }
+    dio.interceptors.add(
+      PrettyDioLogger(
+        requestHeader: false,
+        requestBody: false,
+        responseBody: false,
+        error: false,
+      ),
+    );
   }
 
   void addHeaders() {
@@ -89,7 +92,10 @@ class NetworkService {
     Map<String, dynamic>? queryParameters,
     String? token,
     bool isRaw = true,
+    int? expectedStatusCode,
+    bool skipAuthRefresh = false,
   }) async {
+    final isLogoutRequest = endPoint.endsWith(EndPoints.mobileLogout);
     try {
       var response = await dio.post(
         endPoint,
@@ -99,7 +105,35 @@ class NetworkService {
             ? data
             : FormData.fromMap(data),
         queryParameters: queryParameters,
+        options: skipAuthRefresh
+            ? Options(extra: {'auth_logout_request': true})
+            : null,
       );
+
+      if (isLogoutRequest) {
+        final responseData = response.data;
+        final bodyStatusCode = responseData is Map
+            ? responseData['statusCode']
+            : null;
+        log(
+          'Logout API response: httpStatus=${response.statusCode}; '
+          'bodyStatusCode=$bodyStatusCode; '
+          'serverMessage=${_safeLogoutServerMessage(responseData)}.',
+          name: 'NetworkService',
+        );
+      }
+
+      if (expectedStatusCode != null &&
+          response.statusCode != expectedStatusCode) {
+        if (isLogoutRequest) {
+          log(
+            'Logout API rejected: expectedHttpStatus=$expectedStatusCode; '
+            'actualHttpStatus=${response.statusCode}.',
+            name: 'NetworkService',
+          );
+        }
+        return Left(Failure('Unexpected HTTP status ${response.statusCode}.'));
+      }
 
       if (response.statusCode! >= 200 && response.statusCode! <= 299) {
         final body = response.data;
@@ -150,16 +184,73 @@ class NetworkService {
         return Left(Failure(msg ?? 'Error ${response.statusCode}'));
       }
     } on SocketException {
+      if (isLogoutRequest) {
+        log(
+          'Logout API failed: type=SocketException; '
+          'httpStatus=unavailable; serverMessage=unavailable.',
+          name: 'NetworkService',
+        );
+      }
       return const Left(
         Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
       );
     } on FormatException {
+      if (isLogoutRequest) {
+        log(
+          'Logout API failed: type=FormatException; '
+          'httpStatus=unavailable; serverMessage=unavailable.',
+          name: 'NetworkService',
+        );
+      }
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
+      if (isLogoutRequest) {
+        log(
+          'Logout API failed: type=${e.type}; '
+          'httpStatus=${e.response?.statusCode ?? 'unavailable'}; '
+          'serverMessage=${_safeLogoutServerMessage(e.response?.data)}.',
+          name: 'NetworkService',
+        );
+      }
       return handleDioExceoptions(e);
     } catch (e) {
+      if (isLogoutRequest) {
+        log(
+          'Logout API failed: type=${e.runtimeType}; '
+          'httpStatus=unavailable; serverMessage=unavailable.',
+          name: 'NetworkService',
+        );
+      }
       return Left(Failure(e.toString()));
     }
+  }
+
+  String _safeLogoutServerMessage(dynamic data) {
+    final message = data is Map ? data['message'] ?? data['detail'] : null;
+    if (message is! String || message.trim().isEmpty) return 'unavailable';
+
+    var safeMessage = message
+        .replaceAll(
+          RegExp(r'Bearer\s+[^\s,;]+', caseSensitive: false),
+          'Bearer [REDACTED]',
+        )
+        .replaceAll(
+          RegExp(r'\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b'),
+          '[REDACTED]',
+        )
+        .replaceAll(
+          RegExp(
+            r'(access[_-]?token|refresh[_-]?token|token)\s*[:=]\s*[^\s,;]+',
+            caseSensitive: false,
+          ),
+          'credential=[REDACTED]',
+        )
+        .replaceAll(RegExp(r'\b[A-Za-z0-9._~-]{32,}\b'), '[REDACTED]')
+        .trim();
+    if (safeMessage.length > 200) {
+      safeMessage = '${safeMessage.substring(0, 200)}…';
+    }
+    return safeMessage;
   }
 
   Future<Either<Failure, dynamic>> postEncryptedData({

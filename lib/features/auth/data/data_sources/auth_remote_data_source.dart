@@ -1,3 +1,6 @@
+import 'dart:developer';
+
+import 'package:qrattendance/core/error/failure.dart';
 import 'package:qrattendance/core/network/endpoints.dart';
 import 'package:qrattendance/core/network/network_service.dart';
 import '../models/user_model.dart';
@@ -8,12 +11,37 @@ abstract class AuthRemoteDataSource {
     required String password,
     required String deviceId,
   });
+
+  Future<void> logout();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final NetworkService networkService;
 
   AuthRemoteDataSourceImpl(this.networkService);
+
+  @override
+  Future<void> logout() async {
+    final result = await networkService.postData(
+      endPoint: EndPoints.mobileLogout,
+      expectedStatusCode: 201,
+    );
+
+    result.fold((failure) => throw failure, (response) {
+      if (response is Map && response['statusCode'] == 200) return;
+      final bodyStatusCode = response is Map ? response['statusCode'] : null;
+      log(
+        'Logout response parsing rejected: '
+        'httpStatus=201 (expected status validated); '
+        'bodyStatusCode=$bodyStatusCode; '
+        'responseType=${response.runtimeType}.',
+        name: 'AuthRemoteDataSource',
+      );
+      throw const ServerFailure(
+        message: 'Logout response was not confirmed by the server.',
+      );
+    });
+  }
 
   @override
   Future<UserModel> login({

@@ -16,11 +16,15 @@ class SessionEntity extends Equatable {
   final bool hasQuiz;
   final int? quizMaxGrade;
   final String? quizName;
+  final int? homeworkMaxGrade;
+  final String? homeworkName;
 
   // TODO: Remove this temporary default once the backend provides the real max grade
   static const int temporaryDefaultQuizMaxGrade = 20;
 
   int get effectiveQuizMaxGrade => quizMaxGrade ?? temporaryDefaultQuizMaxGrade;
+  int get effectiveHomeworkMaxGrade => homeworkMaxGrade ?? 100;
+  
   const SessionEntity({
     required this.id,
     required this.title,
@@ -37,6 +41,8 @@ class SessionEntity extends Equatable {
     required this.hasQuiz,
     this.quizMaxGrade,
     this.quizName,
+    this.homeworkMaxGrade,
+    this.homeworkName,
   });
 
   @override
@@ -56,5 +62,7 @@ class SessionEntity extends Equatable {
     hasQuiz,
     quizMaxGrade,
     quizName,
+    homeworkMaxGrade,
+    homeworkName,
   ];
 }

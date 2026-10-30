@@ -6,6 +6,7 @@ class SessionAttendanceEntity extends Equatable {
   final String name;
   final String? picture;
   final String? phoneNumber;
+  final String? parentPhoneNumber;
   final String date;
   final String time;
   final String? sessionDate;
@@ -18,6 +19,7 @@ class SessionAttendanceEntity extends Equatable {
     required this.name,
     this.picture,
     this.phoneNumber,
+    this.parentPhoneNumber,
     required this.date,
     required this.time,
     this.sessionDate,
@@ -32,6 +34,7 @@ class SessionAttendanceEntity extends Equatable {
     name,
     picture,
     phoneNumber,
+    parentPhoneNumber,
     date,
     time,
     sessionDate,

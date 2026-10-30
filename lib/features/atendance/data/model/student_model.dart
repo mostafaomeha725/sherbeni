@@ -10,8 +10,38 @@ class StudentModel extends HiveObject {
   @HiveField(1)
   final String name;
 
-  StudentModel({required this.id, required this.name});
+  @HiveField(2)
+  final String? studentQrCode;
 
-  factory StudentModel.fromJson(Map<String, dynamic> json) =>
-      StudentModel(id: json['id'].toString(), name: json['name']);
+  @HiveField(3)
+  final String? studentType;
+
+  @HiveField(4)
+  final String? email;
+
+  @HiveField(5)
+  final String? studentPhone;
+
+  @HiveField(6)
+  final String? parentPhone;
+
+  StudentModel({
+    required this.id,
+    required this.name,
+    this.studentQrCode,
+    this.studentType,
+    this.email,
+    this.studentPhone,
+    this.parentPhone,
+  });
+
+  factory StudentModel.fromJson(Map<String, dynamic> json) => StudentModel(
+    id: json['id'].toString(),
+    name: json['name']?.toString() ?? '',
+    studentQrCode: json['student_qr_code']?.toString(),
+    studentType: json['educational_level']?.toString(),
+    email: json['email']?.toString(),
+    studentPhone: json['phone']?.toString(),
+    parentPhone: json['parent_phone_number']?.toString(),
+  );
 }

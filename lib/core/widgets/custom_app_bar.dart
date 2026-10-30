@@ -6,11 +6,15 @@ import 'package:qrattendance/core/widgets/bouncing_widgets.dart';
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool showBackButton;
+  final Widget? leading;
+  final List<Widget>? actions;
 
   const CustomAppBar({
     super.key,
     required this.title,
     this.showBackButton = true,
+    this.leading,
+    this.actions,
   });
 
   @override
@@ -33,7 +37,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     border: Border.all(color: const Color(0xFFF0F0F0)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 4.r,
                         offset: Offset(0, 2.h),
                       ),
@@ -43,7 +47,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             )
-          : null,
+          : leading,
       title: Text(
         title,
         style: TextStyle(
@@ -52,6 +56,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           color: const Color(0xFF222222),
         ),
       ),
+      actions: actions,
     );
   }
 

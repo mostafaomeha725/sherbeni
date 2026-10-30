@@ -2,6 +2,7 @@ import 'package:qrattendance/core/network/network_service.dart';
 import 'package:qrattendance/core/network/endpoints.dart';
 import 'package:qrattendance/features/atendance/data/model/session_model.dart';
 import 'package:qrattendance/features/atendance/data/model/academic_class_model.dart';
+import 'package:qrattendance/features/atendance/data/model/manual_search_student_model.dart';
 
 abstract class AttendanceRemoteDataSource {
   Future<Map<String, dynamic>> syncBatch(Map<String, dynamic> data);
@@ -14,6 +15,10 @@ abstract class AttendanceRemoteDataSource {
     String sessionId,
     int page,
     int limit,
+  );
+  Future<Map<String, dynamic>> deleteSessionAttendance(
+    String sessionId,
+    String attendanceId,
   );
   Future<Map<String, dynamic>> getSessionQuizzes(String sessionId);
   Future<Map<String, dynamic>> getSessionQuizGrades(
@@ -32,6 +37,26 @@ abstract class AttendanceRemoteDataSource {
     String sessionId,
     List<Map<String, dynamic>> grades,
   );
+
+  Future<Map<String, dynamic>> getSessionHomeworkGrades(
+    String sessionId,
+    String search,
+    String gradingStatus,
+  );
+
+  Future<Map<String, dynamic>> addOrUpdateHomeworkGrade(
+    String sessionId,
+    String studentId,
+    num grade,
+  );
+
+  Future<Map<String, dynamic>> syncBulkHomeworkGrades(
+    String sessionId,
+    List<Map<String, dynamic>> grades,
+  );
+
+  Future<ManualSearchStudentModel?> searchStudent(String query);
+  Future<List<Map<String, dynamic>>> bulkSearchStudents(List<String> queries);
 }
 
 class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
@@ -158,6 +183,32 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> deleteSessionAttendance(
+    String sessionId,
+    String attendanceId,
+  ) async {
+    final resultEither = await networkService.deleteData(
+      endPoint: EndPoints.deleteSessionAttendance(sessionId, attendanceId),
+    );
+
+    return resultEither.fold(
+      (failureMsg) => throw Exception(failureMsg),
+      (response) {
+        if (response is Map<String, dynamic> &&
+            (response['statusCode'] == 200 ||
+                response['status'] == true ||
+                response['statusCode'] == 204)) {
+          return response;
+        } else if (response is Map<String, dynamic>) {
+          return response;
+        } else {
+          throw Exception('فشل في حذف الحضور');
+        }
+      },
+    );
+  }
+
+  @override
   Future<Map<String, dynamic>> getSessionQuizzes(String sessionId) async {
     final resultEither = await networkService.getData(
       endPoint: EndPoints.getSessionQuizzes(sessionId),
@@ -239,6 +290,30 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> syncBulkHomeworkGrades(
+    String sessionId,
+    List<Map<String, dynamic>> grades,
+  ) async {
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.syncBulkHomeworkGrades(sessionId),
+      data: {'grades': grades},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true ||
+          response['statusCode'] == 200 ||
+          response['statusCode'] == 201) {
+        return response;
+      } else {
+        final code = response['statusCode'] ?? 400;
+        throw Exception(
+          '[$code] ${response['message'] ?? 'فشل مزامنة درجات الواجب'}',
+        );
+      }
+    });
+  }
+
+  @override
   Future<List<AcademicClassModel>> getAcademicClasses(String token) async {
     final resultEither = await networkService.getData(
       endPoint: EndPoints.mobileClassesDropdownList,
@@ -253,6 +328,90 @@ class AttendanceRemoteDataSourceImpl implements AttendanceRemoteDataSource {
         return [];
       } else {
         throw Exception(response['message'] ?? 'فشل في جلب الصفوف الدراسية');
+      }
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> getSessionHomeworkGrades(
+    String sessionId,
+    String search,
+    String gradingStatus,
+  ) async {
+    final Map<String, dynamic> queryParams = {};
+    if (search.isNotEmpty) queryParams['search'] = search;
+    if (gradingStatus != 'all') queryParams['status'] = gradingStatus;
+
+    final resultEither = await networkService.getData(
+      endPoint: EndPoints.getSessionHomeworkGrades(sessionId),
+      queryParameters: queryParams,
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true || response['statusCode'] == 200) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل في جلب درجات الواجب');
+      }
+    });
+  }
+
+  @override
+  Future<Map<String, dynamic>> addOrUpdateHomeworkGrade(
+    String sessionId,
+    String studentId,
+    num grade,
+  ) async {
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.addOrUpdateHomeworkGrade(sessionId),
+      data: {'student_id': studentId, 'grade': grade},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['success'] == true ||
+          response['statusCode'] == 200 ||
+          response['statusCode'] == 201) {
+        return response;
+      } else {
+        throw Exception(response['message'] ?? 'فشل في حفظ درجة الواجب');
+      }
+    });
+  }
+
+  @override
+  Future<ManualSearchStudentModel?> searchStudent(String query) async {
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.studentSearch,
+      data: {'search': query},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        final data = response['data'];
+        if (data == null || data is! Map<String, dynamic>) return null;
+        return ManualSearchStudentModel.fromJson(data);
+      } else {
+        throw Exception(response['message'] ?? 'Student not found');
+      }
+    });
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> bulkSearchStudents(
+    List<String> queries,
+  ) async {
+    final resultEither = await networkService.postData(
+      endPoint: EndPoints.studentSearchBulk,
+      data: {'search': queries},
+    );
+
+    return resultEither.fold((failure) => throw failure, (response) {
+      if (response['status'] == true || response['statusCode'] == 200) {
+        final data = response['data'];
+        if (data == null || data is! List) return [];
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        throw Exception(response['message'] ?? 'Students not found');
       }
     });
   }

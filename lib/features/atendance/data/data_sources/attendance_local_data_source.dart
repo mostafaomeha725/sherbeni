@@ -4,6 +4,8 @@ import '../model/student_model.dart';
 import '../model/session_model.dart';
 import '../model/academic_class_model.dart';
 import '../model/pending_quiz_grade_model.dart';
+import '../model/pending_homework_grade_model.dart';
+import '../model/pending_search_model.dart';
 
 abstract class AttendanceLocalDataSource {
   Future<void> saveOfflineAttendance(AttendanceModel model);
@@ -46,6 +48,20 @@ abstract class AttendanceLocalDataSource {
   Future<PendingQuizGradeModel?> getPendingQuizGrade(String key);
   Future<void> deletePendingQuizGrade(String key);
   Future<void> markPendingQuizGradeAsFailed(String key, String error);
+
+  Future<void> saveHomeworkStudentsCache(String key, String jsonData);
+  Future<String?> getHomeworkStudentsCache(String key);
+
+  Future<void> savePendingHomeworkGrade(PendingHomeworkGradeModel model);
+  Future<List<PendingHomeworkGradeModel>> getPendingHomeworkGrades();
+  Future<PendingHomeworkGradeModel?> getPendingHomeworkGrade(String key);
+  Future<void> deletePendingHomeworkGrade(String key);
+  Future<void> markPendingHomeworkGradeAsFailed(String key, String error);
+
+  Future<void> savePendingSearch(PendingSearchModel model);
+  Future<List<PendingSearchModel>> getPendingSearches();
+  Future<void> deletePendingSearch(String key);
+  Future<void> deletePendingSearches(List<String> keys);
 }
 
 class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
@@ -128,6 +144,40 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
     if (model != null) {
       model.error = error;
       await model.save(); // HiveObject save
+    }
+  }
+
+  @override
+  Future<void> savePendingHomeworkGrade(PendingHomeworkGradeModel model) async {
+    final box = Hive.box<PendingHomeworkGradeModel>('pendingHomeworkGrades');
+    await box.put(model.pendingKey, model);
+  }
+
+  @override
+  Future<List<PendingHomeworkGradeModel>> getPendingHomeworkGrades() async {
+    final box = Hive.box<PendingHomeworkGradeModel>('pendingHomeworkGrades');
+    return box.values.toList();
+  }
+
+  @override
+  Future<PendingHomeworkGradeModel?> getPendingHomeworkGrade(String key) async {
+    final box = Hive.box<PendingHomeworkGradeModel>('pendingHomeworkGrades');
+    return box.get(key);
+  }
+
+  @override
+  Future<void> deletePendingHomeworkGrade(String key) async {
+    final box = Hive.box<PendingHomeworkGradeModel>('pendingHomeworkGrades');
+    await box.delete(key);
+  }
+
+  @override
+  Future<void> markPendingHomeworkGradeAsFailed(String key, String error) async {
+    final box = Hive.box<PendingHomeworkGradeModel>('pendingHomeworkGrades');
+    final model = box.get(key);
+    if (model != null) {
+      model.error = error;
+      await model.save();
     }
   }
 
@@ -241,6 +291,24 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
   }
 
   @override
+  Future<void> saveHomeworkStudentsCache(String key, String jsonData) async {
+    final boxName = 'homework_students_cache';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<String>(boxName)
+        : await Hive.openBox<String>(boxName);
+    await box.put(key, jsonData);
+  }
+
+  @override
+  Future<String?> getHomeworkStudentsCache(String key) async {
+    final boxName = 'homework_students_cache';
+    final box = Hive.isBoxOpen(boxName)
+        ? Hive.box<String>(boxName)
+        : await Hive.openBox<String>(boxName);
+    return box.get(key);
+  }
+
+  @override
   Future<void> saveSessionQuizzesCache(
     String sessionId,
     String jsonData,
@@ -262,6 +330,38 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
         : await Hive.openBox<String>(boxName);
 
     return box.isNotEmpty ? box.getAt(0) : null;
+  }
+
+  @override
+  Future<void> savePendingSearch(PendingSearchModel model) async {
+    final box = Hive.isBoxOpen('pendingSearches')
+        ? Hive.box<PendingSearchModel>('pendingSearches')
+        : await Hive.openBox<PendingSearchModel>('pendingSearches');
+    await box.put(model.pendingKey, model);
+  }
+
+  @override
+  Future<List<PendingSearchModel>> getPendingSearches() async {
+    final box = Hive.isBoxOpen('pendingSearches')
+        ? Hive.box<PendingSearchModel>('pendingSearches')
+        : await Hive.openBox<PendingSearchModel>('pendingSearches');
+    return box.values.toList();
+  }
+
+  @override
+  Future<void> deletePendingSearch(String key) async {
+    final box = Hive.isBoxOpen('pendingSearches')
+        ? Hive.box<PendingSearchModel>('pendingSearches')
+        : await Hive.openBox<PendingSearchModel>('pendingSearches');
+    await box.delete(key);
+  }
+
+  @override
+  Future<void> deletePendingSearches(List<String> keys) async {
+    final box = Hive.isBoxOpen('pendingSearches')
+        ? Hive.box<PendingSearchModel>('pendingSearches')
+        : await Hive.openBox<PendingSearchModel>('pendingSearches');
+    await box.deleteAll(keys);
   }
 
   @override

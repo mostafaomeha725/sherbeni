@@ -7,6 +7,7 @@ class UserModel extends UserEntity {
     required super.email,
     required super.role,
     required super.token,
+    super.refreshToken,
     super.deviceId,
   });
 
@@ -20,6 +21,7 @@ class UserModel extends UserEntity {
       email: user['email'] ?? data['email'] ?? '',
       role: user['role'] ?? data['role'] ?? '',
       token: data['token'] ?? json['token'] ?? '',
+      refreshToken: data['refresh_token']?.toString() ?? json['refresh_token']?.toString(),
       deviceId: data['device_id']?.toString() ?? data['deviceId']?.toString(),
     );
   }
@@ -28,6 +30,7 @@ class UserModel extends UserEntity {
     return {
       'user': {'id': id, 'name': name, 'email': email, 'role': role},
       'token': token,
+      'refresh_token': refreshToken,
       'device_id': deviceId,
     };
   }
@@ -39,7 +42,9 @@ class UserModel extends UserEntity {
       email: email,
       role: role,
       token: token,
+      refreshToken: refreshToken,
       deviceId: deviceId,
     );
   }
 }
+

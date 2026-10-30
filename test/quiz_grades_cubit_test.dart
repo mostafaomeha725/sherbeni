@@ -56,6 +56,7 @@ class FakeUpdateQuizGradeUseCase extends UpdateQuizGradeUseCase {
   @override
   Future<Either<Failure, Map<String, dynamic>>> call(
     String sessionId,
+    String? sessionName,
     String studentId,
     num grade,
   ) async {

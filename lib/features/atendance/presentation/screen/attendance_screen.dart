@@ -6,7 +6,7 @@ import 'package:qrattendance/core/widgets/custom_app_bar.dart';
 import 'package:qrattendance/core/widgets/custom_loading.dart';
 import 'package:qrattendance/features/atendance/domain/entities/academic_class_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/show_sessions/show_sessions_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/attendance_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/attendance/attendance_screen_body.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String? token;

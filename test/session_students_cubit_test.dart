@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qrattendance/core/error/failure.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_attendance_entity.dart';
 import 'package:qrattendance/features/atendance/domain/repositories/attendance_repository.dart';
+import 'package:qrattendance/features/atendance/domain/use_cases/delete_session_attendance_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_offline_session_attendances_use_case.dart';
 import 'package:qrattendance/features/atendance/domain/use_cases/get_session_attendances_use_case.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/session_students/session_students_cubit.dart';
@@ -46,6 +47,22 @@ class FakeGetOfflineSessionAttendancesUseCase
   }
 }
 
+class FakeDeleteSessionAttendanceUseCase
+    implements DeleteSessionAttendanceUseCase {
+  Either<Failure, String>? mockResponse;
+
+  @override
+  late final AttendanceRepository repository;
+
+  @override
+  Future<Either<Failure, String>> call({
+    required String sessionId,
+    required String attendanceId,
+  }) async {
+    return mockResponse ?? const Right('تم الحذف بنجاح');
+  }
+}
+
 class FakeConnectivity implements Connectivity {
   List<ConnectivityResult> mockResult = [ConnectivityResult.wifi];
 
@@ -71,13 +88,20 @@ void main() {
   late SessionStudentsCubit cubit;
   late FakeGetSessionAttendancesUseCase onlineUseCase;
   late FakeGetOfflineSessionAttendancesUseCase offlineUseCase;
+  late FakeDeleteSessionAttendanceUseCase deleteUseCase;
   late FakeConnectivity connectivity;
 
   setUp(() {
     onlineUseCase = FakeGetSessionAttendancesUseCase();
     offlineUseCase = FakeGetOfflineSessionAttendancesUseCase();
+    deleteUseCase = FakeDeleteSessionAttendanceUseCase();
     connectivity = FakeConnectivity();
-    cubit = SessionStudentsCubit(onlineUseCase, offlineUseCase, connectivity);
+    cubit = SessionStudentsCubit(
+      onlineUseCase,
+      offlineUseCase,
+      connectivity,
+      deleteUseCase,
+    );
   });
 
   tearDown(() {
@@ -90,7 +114,12 @@ void main() {
     onlineUseCase.mockResponse = const Right({
       'data': {
         'attendances': [
-          {'student_id': '1', 'name': 'A', 'session_id': 's1'},
+          {
+            'attendance_id': 'att_1',
+            'student_id': '1',
+            'name': 'A',
+            'session_id': 's1',
+          },
         ],
       },
       'pagination': null,
@@ -102,8 +131,8 @@ void main() {
       },
       socketConnect:
           (host, port, {sourceAddress, sourcePort = 0, timeout}) async {
-            return FakeSocket();
-          },
+        return FakeSocket();
+      },
     );
 
     expect(cubit.state, isA<SessionStudentsLoaded>());
@@ -112,20 +141,62 @@ void main() {
     expect(state.attendances.length, 1);
   });
 
-  test('Wi-Fi + no internet -> offline students/cache', () async {
+  test('deleteAttendance removes student from state when successful', () async {
     connectivity.mockResult = [ConnectivityResult.wifi];
 
-    offlineUseCase.mockResponse = const Right([]);
+    onlineUseCase.mockResponse = const Right({
+      'data': {
+        'attendances': [
+          {
+            'attendance_id': 'att_1',
+            'student_id': '1',
+            'name': 'A',
+            'session_id': 's1',
+          },
+          {
+            'attendance_id': 'att_2',
+            'student_id': '2',
+            'name': 'B',
+            'session_id': 's1',
+          },
+        ],
+      },
+      'pagination': null,
+    });
 
-    // Override socketConnect to simulate no actual internet reachability (Android "!")
     await IOOverrides.runZoned(
       () async {
         await cubit.fetchStudents('s1');
       },
       socketConnect:
           (host, port, {sourceAddress, sourcePort = 0, timeout}) async {
-            throw const SocketException('Simulated network failure');
-          },
+        return FakeSocket();
+      },
+    );
+
+    expect((cubit.state as SessionStudentsLoaded).attendances.length, 2);
+
+    deleteUseCase.mockResponse = const Right('تم إزالة الحضور بنجاح');
+    await cubit.deleteAttendance(sessionId: 's1', attendanceId: 'att_1');
+
+    final updatedState = cubit.state as SessionStudentsLoaded;
+    expect(updatedState.attendances.length, 1);
+    expect(updatedState.attendances.first.attendanceId, 'att_2');
+  });
+
+  test('Wi-Fi + no internet -> offline students/cache', () async {
+    connectivity.mockResult = [ConnectivityResult.wifi];
+
+    offlineUseCase.mockResponse = const Right([]);
+
+    await IOOverrides.runZoned(
+      () async {
+        await cubit.fetchStudents('s1');
+      },
+      socketConnect:
+          (host, port, {sourceAddress, sourcePort = 0, timeout}) async {
+        throw const SocketException('Simulated network failure');
+      },
     );
 
     expect(cubit.state, isA<SessionStudentsLoaded>());
@@ -159,8 +230,8 @@ void main() {
       },
       socketConnect:
           (host, port, {sourceAddress, sourcePort = 0, timeout}) async {
-            return FakeSocket();
-          },
+        return FakeSocket();
+      },
     );
 
     expect(cubit.state, isA<SessionStudentsLoaded>());

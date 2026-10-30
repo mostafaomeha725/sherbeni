@@ -6,7 +6,8 @@ class AudioHelper {
 
   static Future<void> playSound(String assetPath) async {
     try {
-      await _audioPlayer.play(AssetSource(assetPath));
+      await _audioPlayer.stop();
+      await _audioPlayer.play(AssetSource(assetPath), position: Duration.zero);
     } catch (e) {
       debugPrint("Error playing sound: $e");
     }

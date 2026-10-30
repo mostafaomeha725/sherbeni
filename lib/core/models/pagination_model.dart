@@ -22,4 +22,20 @@ class PaginationModel {
       hasPreviousPage: json['hasPreviousPage'] ?? false,
     );
   }
+
+  PaginationModel copyWith({
+    int? currentPage,
+    int? totalPages,
+    int? totalItems,
+    bool? hasNextPage,
+    bool? hasPreviousPage,
+  }) {
+    return PaginationModel(
+      currentPage: currentPage ?? this.currentPage,
+      totalPages: totalPages ?? this.totalPages,
+      totalItems: totalItems ?? this.totalItems,
+      hasNextPage: hasNextPage ?? this.hasNextPage,
+      hasPreviousPage: hasPreviousPage ?? this.hasPreviousPage,
+    );
+  }
 }

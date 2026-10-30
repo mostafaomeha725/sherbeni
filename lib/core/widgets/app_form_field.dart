@@ -82,6 +82,7 @@ class _AppFormFieldState extends State<AppFormField> {
       readOnly: widget.readOnly,
       autofillHints: widget.autofillHints,
       obscureText: widget.obsecureText,
+      enableInteractiveSelection: !widget.obsecureText,
       controller: widget.controller,
       keyboardType: widget.keyboardType,
       focusNode: widget.focusNode,

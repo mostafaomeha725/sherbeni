@@ -46,6 +46,7 @@ import 'package:qrattendance/features/atendance/presentation/screen/attendance_s
 import 'package:qrattendance/features/atendance/presentation/screen/quiz_grades_screen.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/select_class_screen.dart';
 import 'package:qrattendance/features/atendance/presentation/screen/scan_qr_screen.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/homework_grades_screen.dart';
 
 import 'package:qrattendance/features/auth/presentation/screen/login_screen.dart';
 
@@ -121,6 +122,16 @@ final GoRouter appRouter = GoRouter(
             : state.extra as SessionEntity;
 
         return QuizGradesScreen(session: session);
+      },
+    ),
+    GoRoute(
+      path: Routes.homeworkGradesScreen,
+      builder: (context, state) {
+        final session = state.extra is Map
+            ? (state.extra as Map)['session'] as SessionEntity
+            : state.extra as SessionEntity;
+
+        return HomeworkGradesScreen(session: session);
       },
     ),
   ],

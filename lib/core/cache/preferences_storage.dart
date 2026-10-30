@@ -1,3 +1,5 @@
+import 'dart:developer';
+import 'package:flutter/foundation.dart';
 import 'package:qrattendance/core/enums/app_enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +11,61 @@ class PreferencesStorage {
   /// ================= CLEAR =================
   Future<void> clear() async {
     await _preferences.clear();
+  }
+
+  Future<void> clearAllUserData() async {
+    try {
+      final preserveKeys = {
+        PreferencesKeys.currentLanguage.name,
+        PreferencesKeys.currentCurrency.name,
+        PreferencesKeys.fcmToken.name,
+        PreferencesKeys.uuid.name,
+        PreferencesKeys.hasSeenOnBoarding.name,
+        PreferencesKeys.needsLocationPrompt.name,
+      };
+
+      final keys = _preferences.getKeys();
+      for (var key in keys) {
+        if (!preserveKeys.contains(key)) {
+          await _preferences.remove(key);
+        }
+      }
+    } catch (e, stackTrace) {
+      log(
+        'فشل مسح بيانات SharedPreferences في clearAllUserData',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'PreferencesStorage',
+      );
+      debugPrint(
+        '[PreferencesStorage] خطأ أثناء clearAllUserData: $e\n$stackTrace',
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> clearAuthData() async {
+    const authKeys = {
+      PreferencesKeys.userToken,
+      PreferencesKeys.refreshToken,
+      PreferencesKeys.userIsAdmin,
+      PreferencesKeys.userSecretKey,
+      PreferencesKeys.userId,
+      PreferencesKeys.userType,
+      PreferencesKeys.roleId,
+      PreferencesKeys.isEmailConfirmed,
+      PreferencesKeys.name,
+      PreferencesKeys.picture,
+      PreferencesKeys.email,
+      PreferencesKeys.phone,
+      PreferencesKeys.branchName,
+      PreferencesKeys.branchId,
+      PreferencesKeys.userProfile,
+    };
+
+    for (final key in authKeys) {
+      await _preferences.remove(key.name);
+    }
   }
 
   /// ================= BOOLEAN =================

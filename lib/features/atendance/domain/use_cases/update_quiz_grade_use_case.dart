@@ -9,9 +9,15 @@ class UpdateQuizGradeUseCase {
 
   Future<Either<Failure, Map<String, dynamic>>> call(
     String sessionId,
+    String? sessionName,
     String studentId,
     num grade,
   ) async {
-    return await repository.addOrUpdateQuizGrade(sessionId, studentId, grade);
+    return await repository.addOrUpdateQuizGrade(
+      sessionId,
+      sessionName,
+      studentId,
+      grade,
+    );
   }
 }

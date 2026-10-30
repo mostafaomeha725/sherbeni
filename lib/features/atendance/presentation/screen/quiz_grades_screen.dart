@@ -4,7 +4,7 @@ import 'package:qrattendance/core/di/services_locator.dart';
 import 'package:qrattendance/core/widgets/custom_app_bar.dart';
 import 'package:qrattendance/features/atendance/domain/entities/session_entity.dart';
 import 'package:qrattendance/features/atendance/presentation/cubit/quiz_grades/quiz_grades_cubit.dart';
-import 'package:qrattendance/features/atendance/presentation/screen/widgets/quiz_grades_screen_body.dart';
+import 'package:qrattendance/features/atendance/presentation/screen/widgets/quiz_grades/quiz_grades_screen_body.dart';
 
 class QuizGradesScreen extends StatefulWidget {
   final SessionEntity session;

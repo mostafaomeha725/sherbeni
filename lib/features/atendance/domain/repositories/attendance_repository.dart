@@ -4,12 +4,20 @@ import '../entities/session_entity.dart';
 import '../entities/academic_class_entity.dart';
 import '../entities/student_entity.dart';
 import '../entities/session_attendance_entity.dart';
+import '../entities/manual_search_student_entity.dart';
 
 abstract class AttendanceRepository {
   Future<Either<Failure, String>> saveOfflineAttendance({
     required String uid,
     required String sessionId,
+    String? sessionName,
     String? scanTime,
+  });
+
+  Future<Either<Failure, String>> saveOfflineSearch({
+    required String query,
+    required String sessionId,
+    required String sessionName,
   });
 
   Future<Either<Failure, String>> recordOnlineAttendance({
@@ -18,6 +26,12 @@ abstract class AttendanceRepository {
   });
 
   Future<Either<Failure, Map<String, dynamic>>> syncOfflineData();
+
+  Future<Either<Failure, Unit>> retrySpecificOfflineAttendance(
+    String pendingKey,
+  );
+
+  Future<Either<Failure, Map<String, dynamic>>> retryAllOfflineAttendance();
 
   Future<Either<Failure, StudentEntity>> scanOnlineAttendance({
     required String qrCode,
@@ -58,6 +72,10 @@ abstract class AttendanceRepository {
     int page,
     int limit,
   );
+  Future<Either<Failure, String>> deleteSessionAttendance({
+    required String sessionId,
+    required String attendanceId,
+  });
   Future<Either<Failure, List<SessionAttendanceEntity>>>
   getOfflineSessionAttendances(String sessionId);
   Future<Either<Failure, List<dynamic>>> getSessionQuizzes(String sessionId);
@@ -77,7 +95,33 @@ abstract class AttendanceRepository {
 
   Future<Either<Failure, Map<String, dynamic>>> addOrUpdateQuizGrade(
     String sessionId,
+    String? sessionName,
     String studentId,
     num grade,
+  );
+
+  Future<Either<Failure, Map<String, dynamic>>> getSessionHomeworkGrades(
+    String sessionId,
+    String search,
+    String gradingStatus,
+  );
+
+  Future<Either<Failure, Map<String, dynamic>?>> getCachedSessionHomeworkGrades(
+    String sessionId,
+  );
+
+  Future<Either<Failure, Map<String, dynamic>>> addOrUpdateHomeworkGrade(
+    String sessionId,
+    String? sessionName,
+    String studentId,
+    num grade,
+  );
+
+  Future<Either<Failure, ManualSearchStudentEntity?>> searchStudent(
+    String query,
+  );
+
+  Future<Either<Failure, List<ManualSearchStudentEntity>>> bulkSearchStudents(
+    List<String> queries,
   );
 }
