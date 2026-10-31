@@ -38,7 +38,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         name: 'AuthRemoteDataSource',
       );
       throw const ServerFailure(
-        message: 'Logout response was not confirmed by the server.',
+        message:
+            'تعذر تأكيد تسجيل الخروج من الخادم. لم يتم إنهاء الجلسة محليًا.',
       );
     });
   }

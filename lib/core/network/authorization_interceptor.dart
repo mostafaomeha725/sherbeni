@@ -10,6 +10,7 @@ import 'package:qrattendance/core/routes/app_routes.dart';
 import 'package:qrattendance/core/routes/route_paths.dart';
 
 import '/core/di/services_locator.dart';
+import 'package:qrattendance/core/network/network_service.dart';
 
 /// Dio interceptor that:
 ///
@@ -88,8 +89,15 @@ class AuthorizationInterceptor extends Interceptor {
     } else if (statusCode == 419) {
       await _handle419(err, handler);
     } else if (statusCode == 401) {
-      log('401 Unauthorised — redirecting to login.', name: 'AuthInterceptor');
-      await _clearSessionAndRedirect();
+      if (_isLogoutRequest(err.requestOptions)) {
+        log(
+          '401 Unauthorised on logout request — preserving local credentials.',
+          name: 'AuthInterceptor',
+        );
+      } else {
+        log('401 Unauthorised — redirecting to login.', name: 'AuthInterceptor');
+        await _clearSessionAndRedirect();
+      }
       handler.next(err);
     } else {
       handler.next(err);
@@ -178,6 +186,10 @@ class AuthorizationInterceptor extends Interceptor {
       return;
     }
 
+    if (sl.isRegistered<NetworkService>()) {
+      sl<NetworkService>().addToken(newToken);
+    }
+
     requestOptions.extra[_retryMarker] = true;
     try {
       final retryResponse = await _retryRequest(requestOptions, newToken);
@@ -211,6 +223,38 @@ class AuthorizationInterceptor extends Interceptor {
     String newToken,
   ) async {
     final retryDio = _retryDioFactory();
+
+    // Check for non-repeatable bodies: raw streams cannot be read twice
+    if (requestOptions.data is Stream) {
+      log(
+        'Request data is an unrepeatable Stream; cannot retry safely.',
+        name: 'AuthInterceptor',
+      );
+      throw DioException(
+        requestOptions: requestOptions,
+        error: 'Stream request body cannot be replayed after token refresh.',
+        type: DioExceptionType.unknown,
+      );
+    }
+
+    // Replay safety: FormData streams are consumed during transmission,
+    // clone to create fresh streams for the retry attempt.
+    if (requestOptions.data is FormData) {
+      try {
+        requestOptions.data = (requestOptions.data as FormData).clone();
+      } catch (e) {
+        log(
+          'Failed to clone FormData for retry: $e',
+          name: 'AuthInterceptor',
+        );
+        throw DioException(
+          requestOptions: requestOptions,
+          error: 'FormData cannot be cloned for retry: $e',
+          type: DioExceptionType.unknown,
+        );
+      }
+    }
+
     requestOptions.headers.removeWhere(
       (key, _) => key.toLowerCase() == 'authorization',
     );
@@ -223,10 +267,12 @@ class AuthorizationInterceptor extends Interceptor {
         .where((entry) => entry.key.toLowerCase() == 'authorization')
         .map((entry) => entry.value)
         .firstOrNull;
-    if (authorization is! String || !authorization.startsWith('Bearer ')) {
+    if (authorization == null) return null;
+    final authStr = authorization.toString().trim();
+    if (!authStr.toLowerCase().startsWith('bearer ')) {
       return null;
     }
-    return authorization.substring('Bearer '.length);
+    return authStr.substring(7).trim();
   }
 
   static bool _isRefreshRequest(RequestOptions options) {
@@ -255,6 +301,9 @@ class AuthorizationInterceptor extends Interceptor {
     try {
       await preferencesStorage.deleteUserToken();
       await preferencesStorage.deleteRefreshToken();
+      if (sl.isRegistered<NetworkService>()) {
+        sl<NetworkService>().removeToken();
+      }
       final onSessionExpired = _onSessionExpired;
       if (onSessionExpired != null) {
         await onSessionExpired();

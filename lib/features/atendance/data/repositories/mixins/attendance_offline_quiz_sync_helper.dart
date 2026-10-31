@@ -191,8 +191,24 @@ class AttendanceOfflineQuizSyncHelper {
         errorMessage.contains('SocketException') ||
         errorMessage.contains('Timeout');
 
+    final isRetriableError =
+        isNetworkError ||
+        errorMessage.contains('401') ||
+        errorMessage.contains('403') ||
+        errorMessage.contains('419') ||
+        errorMessage.contains('Unauthorised') ||
+        errorMessage.contains('Unauthorized') ||
+        errorMessage.contains('token') ||
+        errorMessage.contains('Token') ||
+        errorMessage.contains('Refresh') ||
+        errorMessage.contains('refresh') ||
+        errorMessage.contains('500') ||
+        errorMessage.contains('502') ||
+        errorMessage.contains('503') ||
+        errorMessage.contains('504');
+
     for (final pending in validPendingForSync) {
-      if (isNetworkError) {
+      if (isRetriableError) {
         await historyLocalDataSource.updateQuizGradeHistoryStatus(
           pending.pendingKey,
           'pending',

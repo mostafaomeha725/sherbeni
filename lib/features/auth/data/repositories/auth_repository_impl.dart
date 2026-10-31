@@ -9,8 +9,9 @@ import '../data_sources/auth_remote_data_source.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDataSource;
+  final Future<bool> Function()? checkInternet;
 
-  AuthRepositoryImpl(this.remoteDataSource);
+  AuthRepositoryImpl(this.remoteDataSource, {this.checkInternet});
 
   @override
   Future<Either<Failure, void>> logout() async {
@@ -22,9 +23,24 @@ class AuthRepositoryImpl implements AuthRepository {
       return _clearLocalAuth(preferencesStorage, networkService);
     }
 
+    final isOnline = checkInternet != null
+        ? await checkInternet!()
+        : await NetworkService.isInternetAvailable();
+
+    if (!isOnline) {
+      return const Left(
+        NetworkFailure(
+          message: 'لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.',
+        ),
+      );
+    }
+
     try {
       await remoteDataSource.logout();
-    } catch (_) {
+    } catch (e) {
+      if (e is Failure) {
+        return Left(e);
+      }
       return const Left(
         ServerFailure(
           message:

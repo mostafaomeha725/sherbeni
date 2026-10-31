@@ -53,12 +53,19 @@ class TokenRefreshService {
       final responseData = response.data;
       if (responseData == null) return null;
 
-      final data = responseData['data'] as Map<String, dynamic>?;
+      final Map<String, dynamic>? data = responseData is Map<String, dynamic>
+          ? (responseData['data'] is Map<String, dynamic>
+              ? responseData['data'] as Map<String, dynamic>
+              : responseData)
+          : null;
       if (data == null) return null;
 
-      // Refresh response uses 'access_token' (different from login's 'token')
-      final newAccessToken = data['access_token']?.toString();
-      final newRefreshToken = data['refresh_token']?.toString();
+      // Refresh response uses 'access_token' (with camelCase and token fallbacks)
+      final newAccessToken = data['access_token']?.toString() ??
+          data['accessToken']?.toString() ??
+          data['token']?.toString();
+      final newRefreshToken = data['refresh_token']?.toString() ??
+          data['refreshToken']?.toString();
 
       if (newAccessToken == null || newAccessToken.isEmpty) {
         log(

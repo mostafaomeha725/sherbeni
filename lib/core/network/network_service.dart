@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dartz/dartz.dart';
 import 'package:qrattendance/core/cache/preferences_storage.dart';
@@ -67,7 +68,12 @@ class NetworkService {
     dio.options.headers.remove('Authorization');
   }
 
+  static Future<bool> Function()? internetCheckerOverride;
+
   static Future<bool> hasInternetReachability() async {
+    if (internetCheckerOverride != null) {
+      return await internetCheckerOverride!();
+    }
     try {
       final uri = Uri.parse(AppStrings.baseUrl);
       final host = uri.host;
@@ -84,6 +90,44 @@ class NetworkService {
     } catch (_) {
       return false;
     }
+  }
+
+  static Future<bool> isInternetAvailable() async {
+    if (internetCheckerOverride != null) {
+      return await internetCheckerOverride!();
+    }
+
+    try {
+      if (sl.isRegistered<Connectivity>()) {
+        final connectivityResult = await sl<Connectivity>().checkConnectivity();
+        final hasInterface =
+            connectivityResult.contains(ConnectivityResult.wifi) ||
+            connectivityResult.contains(ConnectivityResult.mobile) ||
+            connectivityResult.contains(ConnectivityResult.ethernet);
+        if (!hasInterface) {
+          return false;
+        }
+      }
+
+      final dnsResult = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 3));
+      if (dnsResult.isNotEmpty && dnsResult[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } catch (_) {
+      try {
+        final socket = await Socket.connect(
+          '8.8.8.8',
+          53,
+          timeout: const Duration(seconds: 3),
+        );
+        socket.destroy();
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+    return false;
   }
 
   Future<Either<Failure, dynamic>> postData({
@@ -191,8 +235,18 @@ class NetworkService {
           name: 'NetworkService',
         );
       }
+      final isOnline = await isInternetAvailable();
+      if (!isOnline) {
+        return const Left(
+          NetworkFailure(
+            message: "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+          ),
+        );
+      }
       return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        ServerFailure(
+          message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+        ),
       );
     } on FormatException {
       if (isLogoutRequest) {
@@ -212,7 +266,7 @@ class NetworkService {
           name: 'NetworkService',
         );
       }
-      return handleDioExceoptions(e);
+      return await handleDioExceoptions(e);
     } catch (e) {
       if (isLogoutRequest) {
         log(
@@ -269,8 +323,6 @@ class NetworkService {
     // Encode the signature as Base64
     String encodedSignature = base64.encode(utf8.encode(signature));
 
-    dio.options.headers['X-Signature'] = encodedSignature;
-
     try {
       var response = await dio.post(
         endPoint,
@@ -280,6 +332,7 @@ class NetworkService {
             ? data
             : FormData.fromMap(data),
         queryParameters: queryParameters,
+        options: Options(headers: {'X-Signature': encodedSignature}),
       );
 
       if (response.statusCode! >= 200 && response.statusCode! <= 299) {
@@ -288,13 +341,23 @@ class NetworkService {
         return Left(Failure(response.data['message'].toString()));
       }
     } on SocketException {
+      final isOnline = await isInternetAvailable();
+      if (!isOnline) {
+        return const Left(
+          NetworkFailure(
+            message: "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+          ),
+        );
+      }
       return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        ServerFailure(
+          message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+        ),
       );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
-      return handleDioExceoptions(e);
+      return await handleDioExceoptions(e);
     } catch (e) {
       return Left(Failure(e.toString()));
     }
@@ -314,13 +377,23 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
+      final isOnline = await isInternetAvailable();
+      if (!isOnline) {
+        return const Left(
+          NetworkFailure(
+            message: "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+          ),
+        );
+      }
       return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        ServerFailure(
+          message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+        ),
       );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
-      return handleDioExceoptions(e);
+      return await handleDioExceoptions(e);
     } catch (e) {
       return Left(Failure(e.toString()));
     }
@@ -331,25 +404,19 @@ class NetworkService {
     required String savePath,
     Map<String, dynamic>? queryParameters,
     String? token,
+    ProgressCallback? onReceiveProgress,
+    CancelToken? cancelToken,
+    bool deleteOnError = true,
   }) async {
-    dio.options.headers = {"Accept": "*/*"};
-
     try {
       var response = await dio.download(
         fileUrl,
         savePath,
         queryParameters: queryParameters,
-        onReceiveProgress: (received, total) {
-          // You can use these values to show download progress
-          // safePrint(
-          //     'downloadFile =>Received: ${received.toString()}, Total: ${total.toString()}');
-
-          if (total != -1) {
-            // Calculate download progress percentage
-            // double progress = (received / total * 100);
-            // safePrint('downloadFile => progress: ${progress.toString()}}');
-          }
-        },
+        options: Options(headers: {"Accept": "*/*"}),
+        cancelToken: cancelToken,
+        deleteOnError: deleteOnError,
+        onReceiveProgress: onReceiveProgress,
       );
       return Right(response);
     } catch (e) {
@@ -372,13 +439,23 @@ class NetworkService {
       );
       return Right(response.data);
     } on SocketException {
+      final isOnline = await isInternetAvailable();
+      if (!isOnline) {
+        return const Left(
+          NetworkFailure(
+            message: "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+          ),
+        );
+      }
       return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        ServerFailure(
+          message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+        ),
       );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
-      return handleDioExceoptions(e);
+      return await handleDioExceoptions(e);
     } catch (e) {
       return Left(Failure(e.toString()));
     }
@@ -484,84 +561,151 @@ class NetworkService {
         return Left(Failure(message));
       }
     } on SocketException {
+      final isOnline = await isInternetAvailable();
+      if (!isOnline) {
+        return const Left(
+          NetworkFailure(
+            message: "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+          ),
+        );
+      }
       return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
+        ServerFailure(
+          message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+        ),
       );
     } on FormatException {
       return const Left(Failure("Format Exception"));
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.badResponse) {
-        final message = _extractErrorMessage(
-          e.response?.data,
-          fallback: e.message ?? 'Bad response',
-        );
-        return Left(Failure(message));
-        // return Left(_l)(e.message);
-      } else if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.connectionError) {
-        // safePrint('check your connection');
-        return const Left(
-          Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
-        );
-      } else if (e.type == DioExceptionType.receiveTimeout) {
-        return const Left(Failure("تعذر الاتصال بالخادم"));
-      } else {
-        return Left(Failure(e.message ?? ""));
-        // return const Left("Check internet connection");
-      }
+      return await handleDioExceoptions(e);
     } catch (e) {
       return Left(Failure(e.toString()));
     }
   }
 
-  Left<Failure, dynamic> handleDioExceoptions(DioException e) {
-    if (e.type == DioExceptionType.badResponse) {
-      final data = e.response?.data;
-      if (data is Map<String, dynamic>) {
-        // Handle validation errors as Map: { "errors": { "Email": ["..."], "PhoneNumber": ["..."] } }
-        if (data['errors'] is Map) {
-          final errors = data['errors'] as Map;
-          for (final fieldErrors in errors.values) {
-            if (fieldErrors is List && fieldErrors.isNotEmpty) {
-              return Left(Failure(fieldErrors.first.toString()));
+  Future<Left<Failure, dynamic>> handleDioExceoptions(DioException e) async {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return const Left(
+          TimeoutFailure(
+            message: "انتهت مهلة الاتصال بالخادم، يرجى المحاولة مرة أخرى.",
+          ),
+        );
+
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        final data = e.response?.data;
+        String? serverMessage;
+
+        if (data is Map<String, dynamic>) {
+          if (data['errors'] is Map) {
+            final errors = data['errors'] as Map;
+            for (final fieldErrors in errors.values) {
+              if (fieldErrors is List && fieldErrors.isNotEmpty) {
+                serverMessage = fieldErrors.first.toString();
+                break;
+              }
             }
           }
-        }
-        // Handle errors as List: { "errors": [{"description": "..."}] }
-        if (data['errors'] is List && (data['errors'] as List).isNotEmpty) {
-          final firstError = (data['errors'] as List).first;
-          if (firstError is Map<String, dynamic>) {
-            final desc =
-                firstError['description']?.toString() ?? 'Unknown error';
-            if (firstError['code'] == 'EMAIL_NOT_VERIFIED') {
-              return Left(EmailNotVerifiedFailure(message: desc));
+          if (serverMessage == null &&
+              data['errors'] is List &&
+              (data['errors'] as List).isNotEmpty) {
+            final firstError = (data['errors'] as List).first;
+            if (firstError is Map<String, dynamic>) {
+              final desc = firstError['description']?.toString();
+              if (firstError['code'] == 'EMAIL_NOT_VERIFIED') {
+                return Left(
+                  EmailNotVerifiedFailure(
+                    message: desc ?? 'Email is not verified',
+                  ),
+                );
+              }
+              serverMessage = desc;
             }
-            return Left(Failure(desc));
           }
+          serverMessage ??= data['detail']?.toString() ??
+              data['message']?.toString() ??
+              data['title']?.toString();
         }
-        // Handle top-level detail field (e.g. FluentValidation 500 errors)
-        if (data['detail'] != null) {
-          return Left(Failure(data['detail'].toString()));
+
+        if (statusCode == 401) {
+          return Left(
+            AuthFailure(
+              message:
+                  serverMessage ??
+                  "انتهت صلاحية الجلسة، يرجى إعادة تسجيل الدخول.",
+            ),
+          );
+        } else if (statusCode == 419) {
+          return Left(
+            AuthFailure(
+              message:
+                  serverMessage ?? "انتهت صلاحية الجلسة، يرجى إعادة المحاولة.",
+            ),
+          );
+        } else if (statusCode != null && statusCode >= 500) {
+          return Left(
+            ServerFailure(
+              message:
+                  serverMessage ??
+                  "حدث خطأ في الخادم ($statusCode)، يرجى المحاولة لاحقًا.",
+            ),
+          );
+        } else {
+          return Left(
+            ServerFailure(
+              message:
+                  serverMessage ?? e.message ?? "تعذر إكمال الطلب.",
+            ),
+          );
         }
-        // Handle message field format
-        if (data['message'] != null) {
-          return Left(Failure(data['message'].toString()));
+
+      case DioExceptionType.connectionError:
+        final isOnline = await isInternetAvailable();
+        if (!isOnline) {
+          return const Left(
+            NetworkFailure(
+              message:
+                  "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+            ),
+          );
+        } else {
+          return const Left(
+            ServerFailure(
+              message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+            ),
+          );
         }
-        // Fallback to title
-        if (data['title'] != null) {
-          return Left(Failure(data['title'].toString()));
+
+      case DioExceptionType.cancel:
+        return const Left(UserCancelledFailure());
+
+      case DioExceptionType.badCertificate:
+        return const Left(
+          ServerFailure(message: "خطأ في شهادة أمان الخادم."),
+        );
+
+      case DioExceptionType.unknown:
+      default:
+        if (e.error is SocketException) {
+          final isOnline = await isInternetAvailable();
+          if (!isOnline) {
+            return const Left(
+              NetworkFailure(
+                message:
+                    "لا يوجد اتصال بالإنترنت، تحقق من اتصالك وحاول مرة أخرى.",
+              ),
+            );
+          }
+          return const Left(
+            ServerFailure(
+              message: "تعذر الاتصال بالخادم، يرجى المحاولة لاحقًا.",
+            ),
+          );
         }
-      }
-      return Left(Failure(e.message ?? 'Something went wrong'));
-    } else if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.connectionError) {
-      return const Left(
-        Failure("لا يوجد اتصال بالإنترنت، يرجى التحقق من الشبكة"),
-      );
-    } else if (e.type == DioExceptionType.receiveTimeout) {
-      return const Left(Failure("تعذر الاتصال بالخادم"));
-    } else {
-      return Left(Failure(e.message ?? ""));
+        return Left(Failure(e.message ?? "حدث خطأ غير متوقع."));
     }
   }
 

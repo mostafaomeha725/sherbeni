@@ -103,11 +103,27 @@ mixin AttendanceOfflineAttendanceSyncMixin on AttendanceOfflineBaseMixin {
               errorMessage.contains('SocketException') ||
               errorMessage.contains('Timeout');
 
+          final isRetriableError =
+              isNetworkError ||
+              errorMessage.contains('401') ||
+              errorMessage.contains('403') ||
+              errorMessage.contains('419') ||
+              errorMessage.contains('Unauthorised') ||
+              errorMessage.contains('Unauthorized') ||
+              errorMessage.contains('token') ||
+              errorMessage.contains('Token') ||
+              errorMessage.contains('Refresh') ||
+              errorMessage.contains('refresh') ||
+              errorMessage.contains('500') ||
+              errorMessage.contains('502') ||
+              errorMessage.contains('503') ||
+              errorMessage.contains('504');
+
           for (var entry in localData) {
             final pendingKey = '${entry.uid}_${entry.sessionId}';
 
-            if (isNetworkError) {
-              // Keep as pending for network errors
+            if (isRetriableError) {
+              // Keep as pending for network and auth/server errors so they can be retried
               await historyLocalDataSource.updateAttendanceHistoryStatus(
                 pendingKey,
                 'pending',

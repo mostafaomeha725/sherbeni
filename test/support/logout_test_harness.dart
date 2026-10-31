@@ -28,7 +28,11 @@ LogoutTestHarness createLogoutHarness(
   FakeHttpAdapter adapter, {
   FakeHttpAdapter? refreshAdapter,
   FakeHttpAdapter? retryAdapter,
+  Future<bool> Function()? checkInternet,
 }) {
+  final effectiveCheckInternet = checkInternet ?? () async => true;
+  NetworkService.internetCheckerOverride = effectiveCheckInternet;
+
   final effectiveRefreshAdapter = refreshAdapter ?? respondWith(401, {});
   final effectiveRetryAdapter = retryAdapter ?? respondWith(419, {});
   final refreshDio = Dio(BaseOptions(baseUrl: AppStrings.baseUrl))
@@ -46,7 +50,10 @@ LogoutTestHarness createLogoutHarness(
   );
   sl.registerSingleton<NetworkService>(networkService);
   return LogoutTestHarness(
-    repository: AuthRepositoryImpl(AuthRemoteDataSourceImpl(networkService)),
+    repository: AuthRepositoryImpl(
+      AuthRemoteDataSourceImpl(networkService),
+      checkInternet: effectiveCheckInternet,
+    ),
     networkService: networkService,
     adapter: adapter,
     refreshAdapter: effectiveRefreshAdapter,
